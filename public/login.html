@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Admin — Justice API</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  body{display:flex; align-items:center; justify-content:center;}
+  .login-card{max-width:380px; width:100%; margin:16px; padding:28px;}
+  .login-card .brand{display:flex; align-items:center; gap:9px; font-family:var(--mono); font-weight:700; letter-spacing:.05em; font-size:15px; margin-bottom:22px;}
+  .login-card .brand .dot{width:8px; height:8px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber);}
+  .login-card h1{font-family:var(--mono); font-size:16px; margin:0 0 6px;}
+  .login-card p.desc{color:var(--muted); font-size:13px; margin:0 0 20px;}
+  .login-card .btn{width:100%; margin-top:4px;}
+  .login-card .back{display:block; margin-top:16px; font-size:12.5px; text-align:center; color:var(--muted-2);}
+</style>
+</head>
+<body>
+  <div class="panel login-card">
+    <div class="brand"><span class="dot"></span>JUSTICE_API // ADMIN</div>
+    <h1>Login Admin</h1>
+    <p class="desc">Masukin Admin API Key kamu (di-set lewat <code>ADMIN_API_KEY</code> di file <code>.env</code> server).</p>
+    <div id="loginMsg"></div>
+    <form id="loginForm">
+      <label for="adminKeyInput">Admin API Key</label>
+      <input type="password" id="adminKeyInput" autocomplete="current-password" placeholder="••••••••••••" autofocus>
+      <button type="submit" class="btn btn-primary" id="loginBtn">Masuk</button>
+    </form>
+    <a class="back" href="/features.html">← Balik ke halaman fitur</a>
+  </div>
+
+<script src="admin-shared.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justice API — Ops (Health, Riwayat, Usage, Cache, Log)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  /* Deskripsi panel — beda dari .hint (yang punya margin negatif buat
+     nempel di bawah input), ini paragraf biasa di bawah judul panel. */
+  .panel-desc{color:var(--muted); font-size:13px; margin:-6px 0 14px; max-width:720px;}
+  /* Sub-heading di dalam panel, gaya sama kayak .panel h2 */
+  .panel h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted-2);margin:20px 0 10px;font-family:var(--mono);font-weight:600;}
+  .hstat{display:inline-block; font-family:var(--mono); font-size:12px; padding:2px 8px; border-radius:4px; margin-right:6px;}
+  .hstat.ok{color:var(--green); background:rgba(123,224,160,.12); border:1px solid rgba(123,224,160,.3);}
+  .hstat.degraded{color:var(--amber); background:rgba(255,180,84,.12); border:1px solid rgba(255,180,84,.3);}
+  .hstat.fail{color:var(--red); background:rgba(255,107,107,.12); border:1px solid rgba(255,107,107,.3);}
+  .hstat.skipped{color:var(--muted-2); background:rgba(127,155,184,.08); border:1px solid var(--line-soft);}
+  .health-row td{font-size:12.5px;}
+  .log-box{font-family:var(--mono); font-size:11.5px; white-space:pre-wrap; word-break:break-all; background:#081019; border:1px solid var(--line); border-radius:6px; padding:10px 12px; max-height:420px; overflow:auto; color:#cfe3f5; line-height:1.55;}
+  .toolbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;}
+  .toolbar input{margin-bottom:0; max-width:240px;}
+  .toolbar input.ttl{max-width:170px;}
+  .toolbar select{margin-bottom:0; width:auto;}
+  .toolbar .hint{margin:0;}
+  .conflict-tag{color:var(--amber); font-size:11px;}
+</style>
+</head>
+<body>
+<nav class="adminnav" id="adminnav"></nav>
+
+<div class="page">
+  <div class="page-head">
+    <div class="crumbs"><a href="/admin.html">Dashboard</a> / Ops</div>
+    <h1>Ops</h1>
+    <p>Health check endpoint, riwayat scaffold (undo), usage analytics per client, cache per endpoint, dan log viewer.</p>
+  </div>
+
+  <!-- Panel block biasa (bukan grid) — grid bikin min-width tabel di dalam
+       panel maksa lebar halaman melebihi layar HP (horizontal overflow). -->
+  <div>
+
+    <div class="panel">
+      <h2>Health Check Endpoint</h2>
+      <p class="panel-desc">Nge-hit semua endpoint terdaftar pakai test params tersimpan (otomatis kesimpen pas apply endpoint dari panel, atau set manual di tabel). Endpoint scraper bisa mati diam-diam karena situs sumbernya berubah — cek dari sini tanpa nunggu laporan user.</p>
+      <div class="toolbar">
+        <button class="btn btn-primary" id="healthRunBtn">Jalankan Health Check</button>
+        <span id="healthSummary"></span>
+      </div>
+      <div id="healthTableWrap"><div class="empty-hint">Belum dijalankan.</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Riwayat Scaffold (Undo)</h2>
+      <p class="panel-desc">Tiap apply (tambah/edit/hapus endpoint) otomatis nyimpen snapshot file-file sebelum diubah. Rollback = kembalikan persis ke kondisi itu. Hati-hati: rollback entry lama bisa nimpa perubahan yang lebih baru di file yang sama (ada tanda ⚠ kalau begitu).</p>
+      <div id="historyWrap"><div class="empty-hint">Memuat...</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Usage Analytics</h2>
+      <div class="toolbar">
+        <label style="margin:0;">Rentang:</label>
+        <select id="usageDays">
+          <option value="1">hari ini</option>
+          <option value="7" selected>7 hari</option>
+          <option value="30">30 hari</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="usageReloadBtn">Muat Ulang</button>
+      </div>
+      <div id="usageWrap"><div class="empty-hint">Memuat...</div></div>
+      <h3>Endpoint terpopuler</h3>
+      <div id="usageTopPaths"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Cache per Endpoint</h2>
+      <p class="panel-desc">Response GET yang sukses disimpan in-memory dan dibagikan ke semua pemanggil selama TTL. Cocok buat endpoint scraper yang berat. Rule pakai prefix path: <code>/api/anime</code> kena semua sub-path-nya.</p>
+      <div class="toolbar">
+        <input type="text" id="cachePath" placeholder="/api/anime/search">
+        <input type="text" id="cacheTtl" class="ttl" placeholder="TTL detik, mis. 300">
+        <button class="btn btn-primary btn-sm" id="cacheSetBtn">Simpan Rule</button>
+        <button class="btn btn-secondary btn-sm" id="cacheClearBtn">Bersihkan Isi Cache</button>
+        <span class="hint" id="cacheStats"></span>
+      </div>
+      <div id="cacheResult"></div>
+      <div id="cacheTableWrap"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Log Viewer</h2>
+      <div class="toolbar">
+        <input type="text" id="logFilter" placeholder="filter: path / status / IP...">
+        <select id="logLines">
+          <option value="100">100 baris</option>
+          <option value="200" selected>200 baris</option>
+          <option value="500">500 baris</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" id="logReloadBtn">Muat Ulang</button>
+        <span class="hint" id="logCount"></span>
+      </div>
+      <div class="log-box" id="logBox">Memuat...</div>
+    </div>
+
+    <div class="panel">
+      <h2>Ekspor OpenAPI</h2>
+      <p class="panel-desc">Dokumen OpenAPI 3.0 digenerate dari dokumentasi endpoint — bisa di-import ke Postman, Insomnia, atau Swagger UI.</p>
+      <div class="actions">
+        <button class="btn btn-secondary" id="openapiBtn">Download openapi.json</button>
+      </div>
+      <div id="openapiResult"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Backup &amp; Restore</h2>
+      <p class="panel-desc">Bundle JSON berisi semua yang gak bisa direkonstruksi dari git: API key client, konfigurasi cache &amp; health test, plus kode endpoint hasil scaffold. Penting kalau deploy di Railway tanpa volume — filesystem-nya ephemeral, sekali redeploy semua itu hilang. Download backup rutin, restore dari sini setelah redeploy.</p>
+      <div class="toolbar">
+        <button class="btn btn-secondary" id="backupDownloadBtn">Download Backup</button>
+        <input type="file" id="backupFile" accept="application/json,.json" style="display:none;">
+        <button class="btn btn-danger" id="backupRestoreBtn">Restore dari File…</button>
+      </div>
+      <div id="backupResult"></div>
+    </div>
+
+  </div>
+</div>
+
+<div id="modalMount"></div>
+
+<script src="admin-shared.js"></script>
+<script src="admin-ops.js"></script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justice API — Tambah Endpoint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<nav class="adminnav" id="adminnav"></nav>
+
+<div class="page">
+  <div class="page-head">
+    <div class="crumbs"><a href="/admin.html">Dashboard</a> / Tambah Endpoint</div>
+    <h1>Tambah Endpoint Baru</h1>
+    <p>Tempel kode class API, klik <b>Analisis Class</b>, pilih method yang mau dipanggil (parameternya otomatis kedeteksi), isi sisanya, preview dulu (ada diff-nya), baru apply.</p>
+  </div>
+
+  <div class="panel">
+    <h2>1. Kode Class</h2>
+    <label>Paste kode class-nya di sini (import boleh ikut, bagian CLI runner / <code>main()</code> di bawahnya otomatis dibuang)</label>
+    <textarea id="classCode" placeholder="class SpotifyDL {&#10;  constructor() { ... }&#10;  async download({ url, format }) { ... }&#10;}" style="min-height:220px;"></textarea>
+    <div class="actions">
+      <button type="button" class="btn btn-secondary" id="analyzeBtn">Analisis Class</button>
+    </div>
+    <div id="analyzeResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="panel disabled" id="methodPanel">
+    <h2>2. Method &amp; Parameter <span class="tag" id="classNameTag"></span></h2>
+    <label>Pilih method yang mau dipanggil dari endpoint ini</label>
+    <div id="methodList"></div>
+
+    <div id="methodParamsWrap" style="margin-top:14px;">
+      <label>Parameter method (otomatis dari signature, tinggal atur nama field request-nya)</label>
+      <div id="methodParamsList"></div>
+    </div>
+
+    <div id="ctorWrap" style="margin-top:14px; display:none;">
+      <label>Constructor butuh argumen ini — tentukan asalnya per argumen</label>
+      <div id="ctorParamsList"></div>
+    </div>
+
+    <div id="batchWrap" style="margin-top:18px; display:none; border-top:1px solid var(--line, rgba(255,255,255,.08)); padding-top:14px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="batchToggle" style="width:auto;">
+        <span><b>Mode batch</b> — buat BEBERAPA endpoint sekaligus (1 endpoint per method) dalam sekali apply</span>
+      </label>
+      <div id="batchList" style="display:none; margin-top:10px;"></div>
+      <div class="hint" id="batchHint" style="display:none;">Parameter tiap method dipetakan otomatis (nama field request = nama parameter di service). Mau mapping custom? Pakai mode satuan, atau edit endpoint-nya setelah dibuat.</div>
+    </div>
+  </div>
+
+  <div class="panel disabled" id="restPanel">
+    <h2>3. Service</h2>
+    <div class="row">
+      <div>
+        <label>Nama file service (tanpa .service.js), mis. "soundcloud"</label>
+        <input type="text" id="serviceFileName" placeholder="soundcloud">
+      </div>
+      <div>
+        <label>Nama variabel instance di route, mis. "soundcloud"</label>
+        <input type="text" id="instanceName" placeholder="(default = nama service)">
+      </div>
+    </div>
+
+    <h2 style="margin-top:22px;">4. Route</h2>
+    <div class="mode-toggle">
+      <button type="button" data-mode="new" class="active" id="routeModeNewBtn">Route file baru</button>
+      <button type="button" data-mode="existing" id="routeModeExistingBtn">Tambah ke route existing</button>
+    </div>
+    <div class="row" id="routeModeFields">
+      <div id="newRouteWrap">
+        <label>Slug route baru (jadi prefix /api/&lt;slug&gt;), mis. "soundcloud"</label>
+        <input type="text" id="newRouteSlug" placeholder="soundcloud">
+      </div>
+      <div id="existingRouteWrap" style="display:none;">
+        <label>Pilih file route existing</label>
+        <select id="routeFile"></select>
+      </div>
+      <div>
+        <label>Sub-path endpoint, mis. /download atau /track/:id</label>
+        <input type="text" id="subPath" placeholder="/download">
+      </div>
+    </div>
+    <div class="row3">
+      <div>
+        <label>HTTP Method</label>
+        <select id="httpMethod">
+          <option value="ALL">ALL (GET + POST)</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+        </select>
+      </div>
+      <div>
+        <label>Nama tampilan endpoint</label>
+        <input type="text" id="endpointName" placeholder="Soundcloud Downloader">
+      </div>
+      <div>
+        <label>Deskripsi singkat</label>
+        <input type="text" id="endpointDesc" placeholder="Ambil metadata & link download">
+      </div>
+    </div>
+
+    <h2 style="margin-top:22px;">5. Kategori Dokumentasi</h2>
+    <div class="mode-toggle">
+      <button type="button" data-mode="existing" class="active" id="catModeExistingBtn">Kategori existing</button>
+      <button type="button" data-mode="new" id="catModeNewBtn">Kategori baru</button>
+    </div>
+    <div id="catExistingWrap">
+      <label>Pilih kategori</label>
+      <select id="categoryId"></select>
+    </div>
+    <div id="catNewWrap" style="display:none;">
+      <div class="row3">
+        <div>
+          <label>ID kategori (slug)</label>
+          <input type="text" id="newCatId" placeholder="soundcloud">
+        </div>
+        <div>
+          <label>Tag (2-3 huruf)</label>
+          <input type="text" id="newCatTag" placeholder="SC">
+        </div>
+        <div>
+          <label>Label</label>
+          <input type="text" id="newCatLabel" placeholder="Soundcloud">
+        </div>
+      </div>
+      <label>Deskripsi kategori</label>
+      <input type="text" id="newCatDesc" placeholder="Download track dari Soundcloud.">
+    </div>
+
+    <div id="depsWrap" style="display:none; margin-top:6px;">
+      <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+        <input type="checkbox" id="autoInstallDeps" style="width:auto;">
+        <span id="depsLabel">Auto tambahkan package yang belum ada ke package.json</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="actions">
+    <button class="btn btn-secondary" id="previewBtn" disabled>Preview</button>
+    <button class="btn btn-primary" id="applyBtn" disabled>Apply ke Project</button>
+  </div>
+
+  <div id="result"></div>
+  <div id="verifyWrap" style="display:none;">
+    <div class="actions">
+      <button class="btn btn-secondary" id="verifyBtn">Test Endpoint Sekarang</button>
+    </div>
+    <div id="verifyResult"></div>
+  </div>
+</div>
+
+<script src="admin-shared.js"></script>
+<script src="endpoint-form.js"></script>
+<script src="endpoint-add.js"></script>
+</body>
+</html>

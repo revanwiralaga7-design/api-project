@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm test *)",
+      "Bash(npm audit *)",
+      "Bash(npm outdated *)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(npm install *)",
+      "Bash(mkdir -p /home/Justicee/api-project/src/assets/fonts)",
+      "Bash(curl -sL -o /home/Justicee/api-project/src/assets/fonts/JetBrainsMono-Regular.ttf \"https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/ttf/JetBrainsMono-Regular.ttf\")",
+      "Bash(curl -sL -o /home/Justicee/api-project/src/assets/fonts/JetBrainsMono-Bold.ttf \"https://github.com/JetBrains/JetBrainsMono/raw/master/fonts/ttf/JetBrainsMono-Bold.ttf\")",
+      "Bash(file /home/Justicee/api-project/src/assets/fonts/*.ttf)",
+      "Bash(xxd)",
+      "Bash(node *)",
+      "Bash(PORT=3999 NODE_ENV=test node server.js)",
+      "Bash(curl -s -o /tmp/jsoncard-api.png -w '%{http_code} %{content_type} %{size_download}\\\\n' 'http://localhost:3999/api/canvas/jsoncard?name=Kyynzh&title=Full%20stuck%20depelopler&email=kyynzh@gmail.com&link=gist.kyynzz.web.id&apikey=__TRACKED_VAR__')",
+      "Bash(curl -s http://localhost:3999/api/canvas/jsoncard?apikey=__TRACKED_VAR__)",
+      "Bash(curl -s \"http://localhost:3999/api/endpoints\")",
+      "Bash(kill %1)",
+      "Bash(rm -rf /tmp/docs-test)",
+      "Bash(cp -r /home/Justicee/api-project/public /tmp/docs-test)",
+      "Bash(python3 -)",
+      "Bash(python3 -m http.server 8901)",
+      "Bash(chromium --headless --disable-gpu --no-sandbox --window-size=1440,900 --screenshot=/tmp/docs-top.png \"http://localhost:8901/index.html\")",
+      "Bash(chromium --headless --disable-gpu --no-sandbox --window-size=1440,900 --screenshot=/tmp/docs-top2.png \"http://localhost:8901/index.html\")",
+      "Bash(PORT=3998 NODE_ENV=test node server.js)",
+      "Bash(curl -s -o /dev/null -w 'welcome: %{http_code} %{content_type}\\\\n' 'http://localhost:3998/api/canvas/welcome?name=Kyynzh&apikey=__TRACKED_VAR__')",
+      "Bash(curl -s \"http://localhost:3998/api/endpoints\")",
+      "Bash(PORT=3997 NODE_ENV=test node server.js)",
+      "Bash(curl -s -o /tmp/e2e-me.png -w 'me?format=image: %{http_code} %{content_type} %{size_download}b\\\\n' 'http://localhost:3997/api/me?format=image&apikey=__TRACKED_VAR__')",
+      "Bash(curl -s -o /dev/null -w 'me \\(json biasa\\): %{http_code} %{content_type}\\\\n' http://localhost:3997/api/me?apikey=__TRACKED_VAR__)"
+    ]
+  }
+}

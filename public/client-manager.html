@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justice API — Client &amp; API Key</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .key-cell{display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:12px;}
+  .key-cell code{max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .newkey-box{background:var(--panel-2); border:1px solid var(--green); border-radius:6px; padding:14px; margin-bottom:16px;}
+  .newkey-box .lbl{font-family:var(--mono); font-size:11px; color:var(--green); text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px;}
+  .newkey-box code{display:block; font-size:13px; word-break:break-all; background:#081019; padding:8px 10px; border-radius:5px; margin-bottom:8px;}
+</style>
+</head>
+<body>
+<nav class="adminnav" id="adminnav"></nav>
+
+<div class="page">
+  <div class="page-head">
+    <div class="crumbs"><a href="/admin.html">Dashboard</a> / Client &amp; API Key</div>
+    <h1>Client &amp; API Key</h1>
+    <p>Kelola siapa aja yang bisa akses API ini pakai header <code>x-api-key</code>, dan tier rate-limit-nya (free / premium / admin). Ini beda dari Admin Key panel ini — lihat <code>.env</code> field <code>ADMIN_API_KEY</code> buat itu.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Buat Client Baru</h2>
+    <div class="row">
+      <div>
+        <label>Nama client</label>
+        <input type="text" id="newClientName" placeholder="mis. Budi / App Mobile Internal">
+      </div>
+      <div>
+        <label>Tier</label>
+        <select id="newClientTier">
+          <option value="free">free</option>
+          <option value="premium">premium</option>
+          <option value="admin">admin (unlimited, skip rate limit)</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label>Berlaku sampai (opsional, kosong = selamanya)</label>
+        <input type="date" id="newClientExpires">
+      </div>
+      <div>
+        <label>Kuota harian (opsional, kosong = tanpa batas)</label>
+        <input type="number" id="newClientQuota" placeholder="mis. 500" min="1">
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="createClientBtn">Buat Client</button>
+    </div>
+    <div id="createResult" style="margin-top:12px;"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Daftar Client <span class="tag" id="clientCount"></span></h2>
+    <div id="clientTableWrap"><div class="empty-hint">Memuat daftar client...</div></div>
+  </div>
+
+  <div id="modalMount"></div>
+</div>
+
+<script src="admin-shared.js"></script>
+<script src="client-manager.js"></script>
+</body>
+</html>

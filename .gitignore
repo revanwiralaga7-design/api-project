@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Secrets — JANGAN pernah commit .env asli, cuma .env.example yang boleh.
+.env
+.env.*
+!.env.example
+
+# Data sensitif runtime (API key client asli, dibuat lewat panel admin /
+# npm run create-key). Lihat src/config/clients.example.json buat formatnya.
+src/config/clients.json
+
+# Session store berbasis file (lihat src/app.js) — isinya token session
+# login yang lagi aktif, jangan ikut ke-commit.
+data/sessions/
+
+# Data runtime fitur ops (usage analytics, riwayat scaffold, access log,
+# test params health check, config cache) — spesifik per instance,
+# jangan ikut ke-commit.
+data/usage.json
+data/history/
+data/access.log*
+data/health-tests.json
+data/cache-config.json
+
+# Logs
+*.log
+npm-debug.log*
+logs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Coverage / build output (kalau nanti ada)
+coverage/
+dist/
+build/

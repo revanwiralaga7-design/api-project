@@ -1,0 +1,8 @@
+{
+  "watch": ["src", "server.js", "public"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": [
+    "data/**",
+    "src/config/clients.json"
+  ]
+}

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Justice API — Edit Endpoint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<style>
+  .orig-badge{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12.5px;color:var(--muted);margin-bottom:4px;flex-wrap:wrap;}
+  .qe-param-row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--line-soft);}
+  .qe-param-row:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0;}
+  .qe-param-row .qname{font-family:var(--mono);color:var(--amber);font-size:13px;padding-top:9px;white-space:nowrap;}
+  .qe-param-row label{display:flex;align-items:center;gap:6px;font-size:12px;white-space:nowrap;padding-top:9px;}
+  .qe-pathparam{font-family:var(--mono);font-size:12px;color:var(--muted-2);margin-bottom:4px;}
+  .regen-hint{font-size:12.5px;color:var(--muted-2);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:16px;}
+</style>
+</head>
+<body>
+<nav class="adminnav" id="adminnav"></nav>
+
+<div class="page">
+  <div class="page-head">
+    <div class="crumbs"><a href="/admin.html">Dashboard</a> / Edit Endpoint</div>
+    <h1>Edit Endpoint</h1>
+    <div class="orig-badge" id="origBadge">Memuat detail endpoint...</div>
+  </div>
+
+  <div id="notFoundMsg" style="display:none;"></div>
+
+  <div id="editWrap" style="display:none;">
+    <div class="panel">
+      <h2>Edit Cepat <span class="tag">nama, deskripsi, kategori &amp; wajib/opsional param — gak nyentuh kode</span></h2>
+      <div class="row">
+        <div>
+          <label>Nama tampilan endpoint</label>
+          <input type="text" id="qeName">
+        </div>
+        <div>
+          <label>Kategori dokumentasi</label>
+          <select id="qeCategory"></select>
+        </div>
+      </div>
+      <label>Deskripsi singkat</label>
+      <input type="text" id="qeDesc">
+
+      <div id="qePathParamsWrap" style="display:none;">
+        <label>Path parameter (gak bisa diubah di sini — perlu Regenerate Penuh)</label>
+        <div id="qePathParamsList" style="margin-bottom:12px;"></div>
+      </div>
+
+      <label>Query parameter</label>
+      <div id="qeParamsList"><div class="hint">Endpoint ini gak punya query parameter.</div></div>
+
+      <div class="actions">
+        <button class="btn btn-primary" id="qeSaveBtn">Simpan Perubahan</button>
+      </div>
+      <div id="qeResult" style="margin-top:12px;"></div>
+    </div>
+
+    <div class="section-gap">
+      <h1 style="font-family:var(--mono); font-size:19px;">Regenerate Penuh</h1>
+      <p style="color:var(--muted); font-size:13.5px; max-width:680px;">Ganti method HTTP, tambah/hapus parameter, atau ubah logic service-nya. Ini kerjanya HAPUS definisi lama lalu TULIS definisi baru secara atomik (kalau ada error di tengah, semua di-rollback — project tetap aman). Tempel ulang kode class-nya (boleh sama persis kalau cuma mau ubah param/method).</p>
+      <div class="regen-hint">Endpoint asal: <code id="regenOrigLabel"></code> — kalau field di bawah gak diisi manual, beberapa udah diprefill dari data yang kedeteksi otomatis. Cek lagi sebelum apply.</div>
+
+      <div class="panel">
+        <h2>1. Kode Class</h2>
+        <label>Paste ulang kode class-nya (boleh sama, atau yang sudah diedit)</label>
+        <textarea id="classCode" placeholder="class SpotifyDL {&#10;  constructor() { ... }&#10;  async download({ url, format }) { ... }&#10;}" style="min-height:220px;"></textarea>
+        <div class="actions">
+          <button type="button" class="btn btn-secondary" id="analyzeBtn">Analisis Class</button>
+        </div>
+        <div id="analyzeResult" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="panel disabled" id="methodPanel">
+        <h2>2. Method &amp; Parameter <span class="tag" id="classNameTag"></span></h2>
+        <label>Pilih method yang mau dipanggil dari endpoint ini</label>
+        <div id="methodList"></div>
+
+        <div id="methodParamsWrap" style="margin-top:14px;">
+          <label>Parameter method</label>
+          <div id="methodParamsList"></div>
+        </div>
+
+        <div id="ctorWrap" style="margin-top:14px; display:none;">
+          <label>Constructor butuh argumen ini — tentukan asalnya per argumen</label>
+          <div id="ctorParamsList"></div>
+        </div>
+      </div>
+
+      <div class="panel disabled" id="restPanel">
+        <h2>3. Service</h2>
+        <div class="row">
+          <div>
+            <label>Nama file service (tanpa .service.js)</label>
+            <input type="text" id="serviceFileName" placeholder="soundcloud">
+          </div>
+          <div>
+            <label>Nama variabel instance di route</label>
+            <input type="text" id="instanceName" placeholder="(default = nama service)">
+          </div>
+        </div>
+
+        <h2 style="margin-top:22px;">4. Route</h2>
+        <div class="mode-toggle">
+          <button type="button" data-mode="new" class="active" id="routeModeNewBtn">Route file baru</button>
+          <button type="button" data-mode="existing" id="routeModeExistingBtn">Tambah ke route existing</button>
+        </div>
+        <div class="row" id="routeModeFields">
+          <div id="newRouteWrap">
+            <label>Slug route baru (jadi prefix /api/&lt;slug&gt;)</label>
+            <input type="text" id="newRouteSlug" placeholder="soundcloud">
+          </div>
+          <div id="existingRouteWrap" style="display:none;">
+            <label>Pilih file route existing</label>
+            <select id="routeFile"></select>
+          </div>
+          <div>
+            <label>Sub-path endpoint, mis. /download atau /track/:id</label>
+            <input type="text" id="subPath" placeholder="/download">
+          </div>
+        </div>
+        <div class="row3">
+          <div>
+            <label>HTTP Method</label>
+            <select id="httpMethod">
+              <option value="ALL">ALL (GET + POST)</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+            </select>
+          </div>
+          <div>
+            <label>Nama tampilan endpoint</label>
+            <input type="text" id="endpointName">
+          </div>
+          <div>
+            <label>Deskripsi singkat</label>
+            <input type="text" id="endpointDesc">
+          </div>
+        </div>
+
+        <h2 style="margin-top:22px;">5. Kategori Dokumentasi</h2>
+        <div class="mode-toggle">
+          <button type="button" data-mode="existing" class="active" id="catModeExistingBtn">Kategori existing</button>
+          <button type="button" data-mode="new" id="catModeNewBtn">Kategori baru</button>
+        </div>
+        <div id="catExistingWrap">
+          <label>Pilih kategori</label>
+          <select id="categoryId"></select>
+        </div>
+        <div id="catNewWrap" style="display:none;">
+          <div class="row3">
+            <div>
+              <label>ID kategori (slug)</label>
+              <input type="text" id="newCatId" placeholder="soundcloud">
+            </div>
+            <div>
+              <label>Tag (2-3 huruf)</label>
+              <input type="text" id="newCatTag" placeholder="SC">
+            </div>
+            <div>
+              <label>Label</label>
+              <input type="text" id="newCatLabel" placeholder="Soundcloud">
+            </div>
+          </div>
+          <label>Deskripsi kategori</label>
+          <input type="text" id="newCatDesc">
+        </div>
+
+        <div id="depsWrap" style="display:none; margin-top:6px;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="autoInstallDeps" style="width:auto;">
+            <span id="depsLabel">Auto tambahkan package yang belum ada ke package.json</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="previewBtn" disabled>Preview Perubahan</button>
+        <button class="btn btn-danger" id="applyBtn" disabled>Ganti Endpoint Ini</button>
+      </div>
+      <div id="result"></div>
+    </div>
+  </div>
+</div>
+
+<script src="admin-shared.js"></script>
+<script src="endpoint-form.js"></script>
+<script src="endpoint-edit.js"></script>
+</body>
+</html>
