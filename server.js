@@ -1,10 +1,11 @@
 import app from "./src/app.js";
 import { config } from "./src/config/index.js";
 import { flushUsage } from "./src/utils/usage.js";
+import { logger } from "./src/utils/logger.js";
 
 const server = app.listen(config.port, () => {
-  console.log(`🚀 Server berjalan di http://localhost:${config.port}`);
-  console.log(`📚 Daftar endpoint: http://localhost:${config.port}/api/endpoints`);
+  logger.info(`🚀 Server berjalan di http://localhost:${config.port}`);
+  logger.info(`📚 Daftar endpoint: http://localhost:${config.port}/api/endpoints`);
 });
 
 // --- Graceful shutdown -------------------------------------------------
@@ -23,7 +24,7 @@ let shuttingDown = false;
 function shutdown(signal) {
   if (shuttingDown) return; // sinyal kedua: biarin yang pertama selesai
   shuttingDown = true;
-  console.log(`${signal} diterima — tutup server, tunggu request yang lagi jalan...`);
+  logger.info(`${signal} diterima — tutup server, tunggu request yang lagi jalan...`);
 
   // Stop terima koneksi baru; callback jalan setelah koneksi aktif selesai.
   server.close(() => {
