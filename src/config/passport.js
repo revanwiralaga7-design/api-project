@@ -2,6 +2,7 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import { config } from "./index.js";
+import { logger } from "../utils/logger.js";
 
 /**
  * Auth buat AKSES DOKUMENTASI (/index.html) — beda total sama adminAuth.js
@@ -45,7 +46,7 @@ if (googleEnabled) {
     )
   );
 } else {
-  console.warn(
+  logger.warn(
     "⚠️  GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET belum di-set di .env — tombol login Google bakal nampilin error kalau dipencet (lihat .env.example)."
   );
 }
@@ -71,7 +72,7 @@ if (githubEnabled) {
     )
   );
 } else {
-  console.warn(
+  logger.warn(
     "⚠️  GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET belum di-set di .env — tombol login GitHub bakal nampilin error kalau dipencet (lihat .env.example)."
   );
 }

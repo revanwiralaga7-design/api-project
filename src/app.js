@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
+import pinoHttp from "pino-http";
 import rateLimit from "express-rate-limit";
 import session from "express-session";
 import sqliteSessionStore from "better-sqlite3-session-store";
@@ -24,6 +25,7 @@ import { dailyQuota } from "./middleware/dailyQuota.js";
 import { responseCache } from "./middleware/responseCache.js";
 import { jsonImage } from "./middleware/jsonImage.js";
 import { ACCESS_LOG_PATH } from "./utils/accessLog.js";
+import { logger } from "./utils/logger.js";
 import fs from "fs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -124,10 +126,23 @@ app.get("/index.html", requireDocsAuth, (req, res, next) => next());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 if (config.nodeEnv !== "test") {
-  app.use(morgan(config.nodeEnv === "development" ? "dev" : "combined"));
-  // Log viewer admin: selain ke stdout, tulis juga format 'combined' ke
+  // Request log ke stdout: pino-http (JSON terstruktur di production,
+  // pretty di development via logger bersama). Level diturunin per
+  // status biar gampang di-filter: 5xx = error, 4xx = warn.
+  app.use(
+    pinoHttp({
+      logger,
+      customLogLevel: (req, res, err) => {
+        if (err || res.statusCode >= 500) return "error";
+        if (res.statusCode >= 400) return "warn";
+        return "info";
+      },
+    })
+  );
+  // Log viewer admin: TETAP tulis format 'combined' via morgan ke
   // data/access.log (append stream, folder data/ di-ignore nodemon jadi
-  // gak micu restart). Dibaca via GET /api/admin/logs.
+  // gak micu restart) — tailAccessLog & panel /admin/logs mem-parse
+  // format itu, jangan diganti JSON.
   fs.mkdirSync(path.dirname(ACCESS_LOG_PATH), { recursive: true });
   const accessLogStream = fs.createWriteStream(ACCESS_LOG_PATH, { flags: "a" });
   app.use(morgan("combined", { stream: accessLogStream }));
