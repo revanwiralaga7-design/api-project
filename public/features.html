@@ -1,178 +1,407 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Justice API — Fitur</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --bg:#0b1826; --bg-2:#0e2033; --panel:#122A42; --panel-2:#0f2338;
-  --line:#22405e; --line-soft:#1a3350; --text:#e9f2fa; --muted:#7f9bb8;
-  --muted-2:#5b7896; --amber:#ffb454; --green:#7be0a0; --red:#ff6b6b;
-  --cyan:#7fe0f2; --purple:#c6a3ff;
-  --mono:'IBM Plex Mono', ui-monospace, monospace;
-  --sans:'IBM Plex Sans', system-ui, sans-serif;
-}
-*{box-sizing:border-box;}
-html{scroll-behavior:smooth;}
-body{
-  margin:0; color:var(--text); font-family:var(--sans); line-height:1.55;
-  background:linear-gradient(180deg, var(--bg) 0%, #091320 100%);
-  -webkit-font-smoothing:antialiased;
-}
-body::before{
-  content:""; position:fixed; inset:0;
-  background-image:
-    linear-gradient(var(--line-soft) 1px, transparent 1px),
-    linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
-  background-size:32px 32px; opacity:0.12; pointer-events:none; z-index:0;
-}
-a{color:inherit;}
-::selection{background:var(--amber); color:#1a1206;}
-.wrap{position:relative; z-index:1;}
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Justice API — Fitur</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #0b1826;
+        --bg-2: #0e2033;
+        --panel: #122a42;
+        --panel-2: #0f2338;
+        --line: #22405e;
+        --line-soft: #1a3350;
+        --text: #e9f2fa;
+        --muted: #7f9bb8;
+        --muted-2: #5b7896;
+        --amber: #ffb454;
+        --green: #7be0a0;
+        --red: #ff6b6b;
+        --cyan: #7fe0f2;
+        --purple: #c6a3ff;
+        --mono: "IBM Plex Mono", ui-monospace, monospace;
+        --sans: "IBM Plex Sans", system-ui, sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.55;
+        background: linear-gradient(180deg, var(--bg) 0%, #091320 100%);
+        -webkit-font-smoothing: antialiased;
+      }
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--line-soft) 1px, transparent 1px),
+          linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+        background-size: 32px 32px;
+        opacity: 0.12;
+        pointer-events: none;
+        z-index: 0;
+      }
+      a {
+        color: inherit;
+      }
+      ::selection {
+        background: var(--amber);
+        color: #1a1206;
+      }
+      .wrap {
+        position: relative;
+        z-index: 1;
+      }
 
-.topbar{
-  position:sticky; top:0; z-index:50;
-  display:flex; align-items:center; gap:16px; padding:12px 24px;
-  background:rgba(9,19,32,0.9); backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--line);
-}
-.brand{display:flex; align-items:center; gap:10px; font-family:var(--mono); font-weight:700; letter-spacing:.06em; font-size:15px; text-decoration:none;}
-.brand .dot{width:9px; height:9px; border-radius:50%; background:var(--amber); box-shadow:0 0 8px var(--amber);}
-.topbar-spacer{flex:1;}
-.btn{
-  font-family:var(--mono); font-size:12.5px; font-weight:700; letter-spacing:.03em;
-  padding:8px 16px; border-radius:5px; cursor:pointer; text-decoration:none;
-  display:inline-flex; align-items:center; gap:8px; border:1px solid transparent;
-}
-.btn-ghost{background:transparent; border-color:var(--line); color:var(--muted);}
-.btn-ghost:hover{border-color:var(--amber); color:var(--amber);}
-.btn-solid{background:var(--amber); color:#1a1206;}
-.btn-solid:hover{filter:brightness(1.08);}
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 12px 24px;
+        background: rgba(9, 19, 32, 0.9);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--line);
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        font-size: 15px;
+        text-decoration: none;
+      }
+      .brand .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--amber);
+        box-shadow: 0 0 8px var(--amber);
+      }
+      .topbar-spacer {
+        flex: 1;
+      }
+      .btn {
+        font-family: var(--mono);
+        font-size: 12.5px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        padding: 8px 16px;
+        border-radius: 5px;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid transparent;
+      }
+      .btn-ghost {
+        background: transparent;
+        border-color: var(--line);
+        color: var(--muted);
+      }
+      .btn-ghost:hover {
+        border-color: var(--amber);
+        color: var(--amber);
+      }
+      .btn-solid {
+        background: var(--amber);
+        color: #1a1206;
+      }
+      .btn-solid:hover {
+        filter: brightness(1.08);
+      }
 
-.hero{max-width:880px; margin:0 auto; padding:88px 24px 40px; text-align:center;}
-.hero .eyebrow{font-family:var(--mono); color:var(--amber); letter-spacing:.18em; font-size:11.5px; text-transform:uppercase; margin-bottom:16px;}
-.hero h1{font-family:var(--mono); font-weight:700; font-size:clamp(30px,5.5vw,50px); margin:0 0 16px; letter-spacing:-0.01em;}
-.hero p.sub{color:var(--muted); font-size:16px; max-width:600px; margin:0 auto 30px;}
-.hero .actions{display:flex; gap:12px; justify-content:center; flex-wrap:wrap;}
+      .hero {
+        max-width: 880px;
+        margin: 0 auto;
+        padding: 88px 24px 40px;
+        text-align: center;
+      }
+      .hero .eyebrow {
+        font-family: var(--mono);
+        color: var(--amber);
+        letter-spacing: 0.18em;
+        font-size: 11.5px;
+        text-transform: uppercase;
+        margin-bottom: 16px;
+      }
+      .hero h1 {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: clamp(30px, 5.5vw, 50px);
+        margin: 0 0 16px;
+        letter-spacing: -0.01em;
+      }
+      .hero p.sub {
+        color: var(--muted);
+        font-size: 16px;
+        max-width: 600px;
+        margin: 0 auto 30px;
+      }
+      .hero .actions {
+        display: flex;
+        gap: 12px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
 
-.section{max-width:1080px; margin:0 auto; padding:36px 24px;}
-.section-head{text-align:center; margin-bottom:34px;}
-.section-head .eyebrow{font-family:var(--mono); color:var(--muted-2); letter-spacing:.14em; font-size:11px; text-transform:uppercase; margin-bottom:10px;}
-.section-head h2{font-family:var(--mono); font-size:24px; margin:0;}
+      .section {
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 36px 24px;
+      }
+      .section-head {
+        text-align: center;
+        margin-bottom: 34px;
+      }
+      .section-head .eyebrow {
+        font-family: var(--mono);
+        color: var(--muted-2);
+        letter-spacing: 0.14em;
+        font-size: 11px;
+        text-transform: uppercase;
+        margin-bottom: 10px;
+      }
+      .section-head h2 {
+        font-family: var(--mono);
+        font-size: 24px;
+        margin: 0;
+      }
 
-.grid{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
-.feature{
-  background:var(--panel); border:1px solid var(--line); border-radius:8px;
-  padding:22px; position:relative; overflow:hidden;
-}
-.feature .ico{
-  width:34px; height:34px; border-radius:7px; display:flex; align-items:center; justify-content:center;
-  font-family:var(--mono); font-weight:700; font-size:14px; margin-bottom:14px;
-  background:rgba(255,180,84,0.12); color:var(--amber); border:1px solid rgba(255,180,84,0.3);
-}
-.feature h3{font-size:15px; margin:0 0 8px; font-weight:600;}
-.feature p{color:var(--muted); font-size:13.5px; margin:0;}
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+      .feature {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+      }
+      .feature .ico {
+        width: 34px;
+        height: 34px;
+        border-radius: 7px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 14px;
+        margin-bottom: 14px;
+        background: rgba(255, 180, 84, 0.12);
+        color: var(--amber);
+        border: 1px solid rgba(255, 180, 84, 0.3);
+      }
+      .feature h3 {
+        font-size: 15px;
+        margin: 0 0 8px;
+        font-weight: 600;
+      }
+      .feature p {
+        color: var(--muted);
+        font-size: 13.5px;
+        margin: 0;
+      }
 
-.strip{
-  max-width:1080px; margin:10px auto 0; padding:22px 24px;
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
-  background:var(--panel-2); border:1px solid var(--line); border-radius:8px;
-}
-.strip .lockdot{width:9px; height:9px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); flex:none;}
-.strip p{margin:0; color:var(--muted); font-size:13.5px; flex:1; min-width:220px;}
-.strip strong{color:var(--text);}
+      .strip {
+        max-width: 1080px;
+        margin: 10px auto 0;
+        padding: 22px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        flex-wrap: wrap;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .strip .lockdot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--green);
+        box-shadow: 0 0 8px var(--green);
+        flex: none;
+      }
+      .strip p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13.5px;
+        flex: 1;
+        min-width: 220px;
+      }
+      .strip strong {
+        color: var(--text);
+      }
 
-.cta{
-  max-width:880px; margin:56px auto 0; padding:40px 24px; text-align:center;
-  border-top:1px solid var(--line);
-}
-.cta h2{font-family:var(--mono); font-size:22px; margin:0 0 10px;}
-.cta p{color:var(--muted); font-size:14px; margin:0 0 22px;}
+      .cta {
+        max-width: 880px;
+        margin: 56px auto 0;
+        padding: 40px 24px;
+        text-align: center;
+        border-top: 1px solid var(--line);
+      }
+      .cta h2 {
+        font-family: var(--mono);
+        font-size: 22px;
+        margin: 0 0 10px;
+      }
+      .cta p {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 22px;
+      }
 
-footer{border-top:1px solid var(--line); padding:26px 24px; text-align:center; font-family:var(--mono); font-size:11.5px; color:var(--muted-2);}
-footer a{color:var(--amber);}
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 26px 24px;
+        text-align: center;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        color: var(--muted-2);
+      }
+      footer a {
+        color: var(--amber);
+      }
 
-@media(max-width:820px){ .grid{grid-template-columns:1fr 1fr;} }
-@media(max-width:560px){ .grid{grid-template-columns:1fr;} .brand span.full{display:none;} }
-</style>
-</head>
-<body>
-<div class="wrap">
+      @media (max-width: 820px) {
+        .grid {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .brand span.full {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="topbar">
+        <a href="/features.html" class="brand"
+          ><span class="dot"></span>JUSTICE<span class="full">_API</span></a
+        >
+        <div class="topbar-spacer"></div>
+        <a href="/index.html" class="btn btn-ghost">Docs</a>
+        <a href="/signin.html" class="btn btn-solid">Masuk</a>
+      </div>
 
-  <div class="topbar">
-    <a href="/features.html" class="brand"><span class="dot"></span>JUSTICE<span class="full">_API</span></a>
-    <div class="topbar-spacer"></div>
-    <a href="/index.html" class="btn btn-ghost">Docs</a>
-    <a href="/signin.html" class="btn btn-solid">Masuk</a>
-  </div>
+      <div class="hero">
+        <div class="eyebrow">// Fitur</div>
+        <h1>Satu backend, banyak endpoint — siap dipakai.</h1>
+        <p class="sub">
+          Justice API adalah REST API berbasis Express.js dengan format response yang konsisten, sistem tier
+          &amp; rate limit per client, dan panel admin buat nambah endpoint baru tanpa deploy ulang.
+        </p>
+        <div class="actions">
+          <a href="/index.html" class="btn btn-solid">Lihat Dokumentasi →</a>
+          <a href="/signin.html" class="btn btn-ghost">Masuk dengan Google/GitHub</a>
+        </div>
+      </div>
 
-  <div class="hero">
-    <div class="eyebrow">// Fitur</div>
-    <h1>Satu backend, banyak endpoint — siap dipakai.</h1>
-    <p class="sub">Justice API adalah REST API berbasis Express.js dengan format response yang konsisten, sistem tier &amp; rate limit per client, dan panel admin buat nambah endpoint baru tanpa deploy ulang.</p>
-    <div class="actions">
-      <a href="/index.html" class="btn btn-solid">Lihat Dokumentasi →</a>
-      <a href="/signin.html" class="btn btn-ghost">Masuk dengan Google/GitHub</a>
+      <div class="strip">
+        <span class="lockdot"></span>
+        <p>
+          <strong>Dokumentasi &amp; playground sekarang butuh login.</strong> Klik "Lihat Dokumentasi" dan
+          masuk pakai akun Google atau GitHub kamu — gratis, gak perlu daftar API key buat sekadar liat-liat
+          docs.
+        </p>
+      </div>
+
+      <div class="section">
+        <div class="section-head">
+          <div class="eyebrow">Kenapa Justice API</div>
+          <h2>Dibikin buat gampang dipakai &amp; gampang dikembangin</h2>
+        </div>
+        <div class="grid">
+          <div class="feature">
+            <div class="ico">GET</div>
+            <h3>Endpoint siap pakai</h3>
+            <p>
+              Mulai dari YouTube Search — cari video berdasarkan kata kunci lewat satu request REST,
+              response-nya JSON yang konsisten.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico">⇄</div>
+            <h3>Format response konsisten</h3>
+            <p>
+              Semua endpoint balikin bentuk <code>{ status, data / error }</code> yang sama, jadi gampang
+              di-parse di sisi client apapun bahasanya.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico">⚡</div>
+            <h3>Rate limit per tier</h3>
+            <p>
+              Free 100 req/jam, Premium 1000 req/jam, Admin unlimited — dihitung per client (API key/IP),
+              bukan satu kuota global buat semua orang.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico">＋</div>
+            <h3>Panel admin scaffold</h3>
+            <p>
+              Tambah, edit, atau hapus endpoint baru langsung dari panel admin — kode di-generate &amp;
+              diterapkan tanpa perlu restart manual atau deploy ulang.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico">🔑</div>
+            <h3>Manajemen API key</h3>
+            <p>
+              Bikin, cabut, dan atur tier tiap client dari panel Clients — key baru langsung aktif tanpa
+              restart server.
+            </p>
+          </div>
+          <div class="feature">
+            <div class="ico">🔒</div>
+            <h3>Login Google/GitHub buat Docs</h3>
+            <p>
+              Akses ke halaman dokumentasi &amp; playground sekarang digerbang login OAuth — biar kejelasan
+              siapa yang mengakses docs kamu.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="cta">
+        <h2>Siap coba endpoint-nya langsung?</h2>
+        <p>
+          Masuk sebentar pakai Google atau GitHub, terus langsung bisa test tiap endpoint dari playground
+          interaktifnya.
+        </p>
+        <a href="/index.html" class="btn btn-solid">Masuk &amp; Lihat Dokumentasi →</a>
+      </div>
+
+      <footer>Justice API · fitur baru bakal terus ditambah lewat panel admin.</footer>
     </div>
-  </div>
-
-  <div class="strip">
-    <span class="lockdot"></span>
-    <p><strong>Dokumentasi &amp; playground sekarang butuh login.</strong> Klik "Lihat Dokumentasi" dan masuk pakai akun Google atau GitHub kamu — gratis, gak perlu daftar API key buat sekadar liat-liat docs.</p>
-  </div>
-
-  <div class="section">
-    <div class="section-head">
-      <div class="eyebrow">Kenapa Justice API</div>
-      <h2>Dibikin buat gampang dipakai &amp; gampang dikembangin</h2>
-    </div>
-    <div class="grid">
-      <div class="feature">
-        <div class="ico">GET</div>
-        <h3>Endpoint siap pakai</h3>
-        <p>Mulai dari YouTube Search — cari video berdasarkan kata kunci lewat satu request REST, response-nya JSON yang konsisten.</p>
-      </div>
-      <div class="feature">
-        <div class="ico">⇄</div>
-        <h3>Format response konsisten</h3>
-        <p>Semua endpoint balikin bentuk <code>{ status, data / error }</code> yang sama, jadi gampang di-parse di sisi client apapun bahasanya.</p>
-      </div>
-      <div class="feature">
-        <div class="ico">⚡</div>
-        <h3>Rate limit per tier</h3>
-        <p>Free 100 req/jam, Premium 1000 req/jam, Admin unlimited — dihitung per client (API key/IP), bukan satu kuota global buat semua orang.</p>
-      </div>
-      <div class="feature">
-        <div class="ico">＋</div>
-        <h3>Panel admin scaffold</h3>
-        <p>Tambah, edit, atau hapus endpoint baru langsung dari panel admin — kode di-generate &amp; diterapkan tanpa perlu restart manual atau deploy ulang.</p>
-      </div>
-      <div class="feature">
-        <div class="ico">🔑</div>
-        <h3>Manajemen API key</h3>
-        <p>Bikin, cabut, dan atur tier tiap client dari panel Clients — key baru langsung aktif tanpa restart server.</p>
-      </div>
-      <div class="feature">
-        <div class="ico">🔒</div>
-        <h3>Login Google/GitHub buat Docs</h3>
-        <p>Akses ke halaman dokumentasi &amp; playground sekarang digerbang login OAuth — biar kejelasan siapa yang mengakses docs kamu.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="cta">
-    <h2>Siap coba endpoint-nya langsung?</h2>
-    <p>Masuk sebentar pakai Google atau GitHub, terus langsung bisa test tiap endpoint dari playground interaktifnya.</p>
-    <a href="/index.html" class="btn btn-solid">Masuk &amp; Lihat Dokumentasi →</a>
-  </div>
-
-  <footer>
-    Justice API · fitur baru bakal terus ditambah lewat panel admin.
-  </footer>
-</div>
-</body>
+  </body>
 </html>

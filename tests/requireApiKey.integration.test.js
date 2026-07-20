@@ -16,7 +16,7 @@ const ORIGINAL_CONTENT = ORIGINAL_EXISTED ? fs.readFileSync(CLIENTS_PATH, "utf8"
 
 const FIXTURE = {
   "key-e2e-free": { name: "E2E Free", tier: "free" },
-  "key-e2e-premium": { name: "E2E Premium", tier: "premium" }
+  "key-e2e-premium": { name: "E2E Premium", tier: "premium" },
 };
 
 describe("wajib API key (integration, HTTP asli)", () => {
@@ -61,7 +61,9 @@ describe("wajib API key (integration, HTTP asli)", () => {
     const anon = await (await fetch(`${baseUrl}/api/me`)).json();
     assert.equal(anon.result.identifiedBy, "anonim");
 
-    const keyed = await (await fetch(`${baseUrl}/api/me`, { headers: { "x-api-key": "key-e2e-premium" } })).json();
+    const keyed = await (
+      await fetch(`${baseUrl}/api/me`, { headers: { "x-api-key": "key-e2e-premium" } })
+    ).json();
     assert.equal(keyed.result.identifiedBy, "apiKey");
     assert.equal(keyed.result.tier, "premium");
   });
@@ -80,7 +82,7 @@ describe("wajib API key (integration, HTTP asli)", () => {
 
   test("key lewat header di endpoint data -> bukan 401", async () => {
     const res = await fetch(`${baseUrl}/api/anime/search?query=naruto`, {
-      headers: { "x-api-key": "key-e2e-free" }
+      headers: { "x-api-key": "key-e2e-free" },
     });
     assert.notEqual(res.status, 401);
   });

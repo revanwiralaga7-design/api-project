@@ -56,17 +56,34 @@ export function findMatchingClose(source, openIndex, openChar, closeChar) {
       continue;
     }
     if (inBlockComment) {
-      if (ch === "*" && next === "/") { inBlockComment = false; i++; }
+      if (ch === "*" && next === "/") {
+        inBlockComment = false;
+        i++;
+      }
       continue;
     }
     if (quote) {
-      if (ch === "\\") { i++; continue; }
+      if (ch === "\\") {
+        i++;
+        continue;
+      }
       if (ch === quote) quote = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; continue; }
-    if (ch === "/" && next === "/") { inLineComment = true; i++; continue; }
-    if (ch === "/" && next === "*") { inBlockComment = true; i++; continue; }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      i++;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      i++;
+      continue;
+    }
 
     if (ch === openChar) depth++;
     else if (ch === closeChar) {
@@ -103,9 +120,13 @@ export function splitApiPath(fullPath) {
 }
 
 export function escapeJsString(str) {
-  return String(str || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return String(str || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"');
 }
 
 export function unescapeJsString(str) {
-  return String(str || "").replace(/\\"/g, '"').replace(/\\\\/g, "\\");
+  return String(str || "")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
 }

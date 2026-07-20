@@ -20,7 +20,7 @@ export function usageTracker(req, res, next) {
       // yang dipotong query-nya biar path dinamis (/track/:id) tetap
       // kecatat per URL aslinya.
       path: (req.originalUrl || req.url).split("?")[0],
-      status: res.statusCode
+      status: res.statusCode,
     });
   });
 

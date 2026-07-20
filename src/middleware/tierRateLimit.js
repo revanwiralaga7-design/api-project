@@ -3,7 +3,7 @@ import { config } from "../config/index.js";
 
 export const TIER_MAX = {
   free: config.tierRateLimit.free,
-  premium: config.tierRateLimit.premium
+  premium: config.tierRateLimit.premium,
   // "admin" sengaja gak ada di sini — di-skip total di bawah (unlimited),
   // bukan dikasih angka gede. Biar gak numpuk entry di memory store juga.
 };
@@ -33,7 +33,7 @@ export function buildLimitMessage(req) {
     error: `Limit request tier '${tier}' tercapai (${limit}/jam). Coba lagi nanti${
       tier === "free" ? " atau upgrade ke tier premium." : "."
     }`,
-    tier
+    tier,
   };
 }
 
@@ -57,7 +57,7 @@ export const tierRateLimiter = rateLimit({
   skip: shouldSkip,
   handler: (req, res) => {
     res.status(429).json(buildLimitMessage(req));
-  }
+  },
 });
 
 export default tierRateLimiter;

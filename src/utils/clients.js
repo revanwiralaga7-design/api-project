@@ -61,7 +61,7 @@ export function listClients() {
       // — null = key manual buatan admin (perilaku lama).
       provider: entry?.provider || null,
       email: entry?.email || null,
-      expired: isExpired(entry)
+      expired: isExpired(entry),
     }))
     .sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
@@ -91,7 +91,8 @@ function cleanLimitFields({ expiresAt, dailyQuota }, target) {
       target.expiresAt = null;
     } else {
       const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T23:59:59.999Z` : raw;
-      if (Number.isNaN(Date.parse(iso))) throw new Error(`Format expiresAt tidak valid: '${raw}'. Pakai YYYY-MM-DD.`);
+      if (Number.isNaN(Date.parse(iso)))
+        throw new Error(`Format expiresAt tidak valid: '${raw}'. Pakai YYYY-MM-DD.`);
       target.expiresAt = raw;
     }
   }
@@ -101,7 +102,8 @@ function cleanLimitFields({ expiresAt, dailyQuota }, target) {
       target.dailyQuota = null;
     } else {
       const n = Number(raw);
-      if (!Number.isInteger(n) || n <= 0) throw new Error(`dailyQuota harus bilangan bulat > 0 (atau kosong buat tanpa batas).`);
+      if (!Number.isInteger(n) || n <= 0)
+        throw new Error(`dailyQuota harus bilangan bulat > 0 (atau kosong buat tanpa batas).`);
       target.dailyQuota = n;
     }
   }
@@ -111,7 +113,8 @@ export function createClient({ name, tier, expiresAt, dailyQuota }) {
   const cleanName = String(name || "").trim();
   if (!cleanName) throw new Error("Nama client wajib diisi.");
   const cleanTier = String(tier || "free").toLowerCase();
-  if (!VALID_TIERS.includes(cleanTier)) throw new Error(`Tier tidak valid: '${cleanTier}'. Pilihan: ${VALID_TIERS.join(", ")}.`);
+  if (!VALID_TIERS.includes(cleanTier))
+    throw new Error(`Tier tidak valid: '${cleanTier}'. Pilihan: ${VALID_TIERS.join(", ")}.`);
 
   const clients = loadClients();
   const apiKey = crypto.randomBytes(24).toString("hex");
@@ -134,7 +137,8 @@ export function updateClient(apiKey, { name, tier, expiresAt, dailyQuota }) {
   }
   if (tier !== undefined) {
     const cleanTier = String(tier || "").toLowerCase();
-    if (!VALID_TIERS.includes(cleanTier)) throw new Error(`Tier tidak valid: '${cleanTier}'. Pilihan: ${VALID_TIERS.join(", ")}.`);
+    if (!VALID_TIERS.includes(cleanTier))
+      throw new Error(`Tier tidak valid: '${cleanTier}'. Pilihan: ${VALID_TIERS.join(", ")}.`);
     existing.tier = cleanTier;
   }
   cleanLimitFields({ expiresAt, dailyQuota }, existing);
@@ -186,7 +190,7 @@ export function ensureClientForUser(user) {
     provider: user.provider,
     providerId: String(user.id),
     email: user.email || null,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
   };
   clients[apiKey] = entry;
   saveClients(clients);
@@ -214,4 +218,16 @@ export function promoteClientToAdmin(apiKey) {
   return { apiKey, ...entry };
 }
 
-export default { loadClients, saveClients, listClients, createClient, updateClient, deleteClient, findClientByProvider, ensureClientForUser, promoteClientToAdmin, isExpired, VALID_TIERS };
+export default {
+  loadClients,
+  saveClients,
+  listClients,
+  createClient,
+  updateClient,
+  deleteClient,
+  findClientByProvider,
+  ensureClientForUser,
+  promoteClientToAdmin,
+  isExpired,
+  VALID_TIERS,
+};

@@ -18,7 +18,7 @@ const THEME = {
   key: "#E06C75",
   value: "#98C379",
   symbol: "#FFFFFF",
-  trafficLights: ["#ff5f57", "#febc2e", "#28c840"]
+  trafficLights: ["#ff5f57", "#febc2e", "#28c840"],
 };
 
 const WIDTH = 1200;
@@ -119,8 +119,7 @@ export async function renderJsonCard(fields, title = "aboutme.json") {
   // Isi JSON — kolom ":" disejajarkan ke key terpanjang
   ctx.font = FONT_ROW;
   const keyX = CARD_X + 90;
-  const colonX =
-    keyX + Math.max(...entries.map(([k]) => ctx.measureText(`"${k}"`).width)) + 15;
+  const colonX = keyX + Math.max(...entries.map(([k]) => ctx.measureText(`"${k}"`).width)) + 15;
 
   ctx.fillStyle = THEME.symbol;
   ctx.fillText("{", CARD_X + 40, cardY + 125);

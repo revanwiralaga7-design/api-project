@@ -2,7 +2,13 @@ import { test, describe, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-import { CLIENTS_PATH, loadClients, ensureClientForUser, findClientByProvider, promoteClientToAdmin } from "../src/utils/clients.js";
+import {
+  CLIENTS_PATH,
+  loadClients,
+  ensureClientForUser,
+  findClientByProvider,
+  promoteClientToAdmin,
+} from "../src/utils/clients.js";
 
 /* ------------------------------------------------------------------ */
 /* Fixture: timpa clients.json sementara (pola identifyClient.test.js), */

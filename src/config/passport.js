@@ -30,7 +30,7 @@ if (googleEnabled) {
       {
         clientID: google.clientId,
         clientSecret: google.clientSecret,
-        callbackURL: `${config.appUrl}/auth/google/callback`
+        callbackURL: `${config.appUrl}/auth/google/callback`,
       },
       (accessToken, refreshToken, profile, done) => {
         const user = {
@@ -38,7 +38,7 @@ if (googleEnabled) {
           id: profile.id,
           name: profile.displayName || "Google User",
           email: profile.emails?.[0]?.value || null,
-          avatar: profile.photos?.[0]?.value || null
+          avatar: profile.photos?.[0]?.value || null,
         };
         done(null, user);
       }
@@ -56,7 +56,7 @@ if (githubEnabled) {
       {
         clientID: github.clientId,
         clientSecret: github.clientSecret,
-        callbackURL: `${config.appUrl}/auth/github/callback`
+        callbackURL: `${config.appUrl}/auth/github/callback`,
       },
       (accessToken, refreshToken, profile, done) => {
         const user = {
@@ -64,7 +64,7 @@ if (githubEnabled) {
           id: profile.id,
           name: profile.displayName || profile.username || "GitHub User",
           email: profile.emails?.[0]?.value || null,
-          avatar: profile.photos?.[0]?.value || null
+          avatar: profile.photos?.[0]?.value || null,
         };
         done(null, user);
       }

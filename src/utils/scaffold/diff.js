@@ -26,12 +26,26 @@ export function diffLines(oldStr, newStr) {
   let i = 0;
   let j = 0;
   while (i < n && j < m) {
-    if (a[i] === b[j]) { result.push({ type: "same", line: a[i] }); i++; j++; }
-    else if (dp[i + 1][j] >= dp[i][j + 1]) { result.push({ type: "remove", line: a[i] }); i++; }
-    else { result.push({ type: "add", line: b[j] }); j++; }
+    if (a[i] === b[j]) {
+      result.push({ type: "same", line: a[i] });
+      i++;
+      j++;
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      result.push({ type: "remove", line: a[i] });
+      i++;
+    } else {
+      result.push({ type: "add", line: b[j] });
+      j++;
+    }
   }
-  while (i < n) { result.push({ type: "remove", line: a[i] }); i++; }
-  while (j < m) { result.push({ type: "add", line: b[j] }); j++; }
+  while (i < n) {
+    result.push({ type: "remove", line: a[i] });
+    i++;
+  }
+  while (j < m) {
+    result.push({ type: "add", line: b[j] });
+    j++;
+  }
   return result;
 }
 
@@ -51,7 +65,11 @@ export function compactDiff(diffArr, context = 2) {
   const out = [];
   let i = 0;
   while (i < n) {
-    if (keep[i]) { out.push(diffArr[i]); i++; continue; }
+    if (keep[i]) {
+      out.push(diffArr[i]);
+      i++;
+      continue;
+    }
     let j = i;
     while (j < n && !keep[j]) j++;
     out.push({ type: "context", count: j - i });
@@ -59,7 +77,6 @@ export function compactDiff(diffArr, context = 2) {
   }
   return out;
 }
-
 
 /* ------------------------------------------------------------------ */
 /* 8. Snapshot & rollback (dipakai /admin/apply biar aman kalau ada    */

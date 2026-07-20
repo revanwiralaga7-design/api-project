@@ -56,10 +56,14 @@
         const { categories, routeFiles } = json.result;
 
         const catSel = $("categoryId");
-        catSel.innerHTML = categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${escapeHtml(c.id)})</option>`).join("");
+        catSel.innerHTML = categories
+          .map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${escapeHtml(c.id)})</option>`)
+          .join("");
 
         const routeSel = $("routeFile");
-        routeSel.innerHTML = routeFiles.map((r) => `<option value="${r}">${escapeHtml(r)}.routes.js</option>`).join("");
+        routeSel.innerHTML = routeFiles
+          .map((r) => `<option value="${r}">${escapeHtml(r)}.routes.js</option>`)
+          .join("");
       } catch (e) {
         console.error("Gagal load meta", e);
       }
@@ -73,11 +77,15 @@
         const meta = metaList[i];
         if (!meta) return n;
         if (meta.kind === "rest") return `...${meta.name}`;
-        if (meta.kind === "alias") return meta.hasDefault ? `${meta.source}: ${meta.target} = ${meta.defaultValue}` : `${meta.source}: ${meta.target}`;
+        if (meta.kind === "alias")
+          return meta.hasDefault
+            ? `${meta.source}: ${meta.target} = ${meta.defaultValue}`
+            : `${meta.source}: ${meta.target}`;
         if (meta.hasDefault) return `${meta.name} = ${meta.defaultValue}`;
         return meta.name || n;
       });
-      if (m.paramStyle === "object") return `${m.name}({ ${parts.join(", ")} }${m.paramsOptional ? " = {}" : ""})`;
+      if (m.paramStyle === "object")
+        return `${m.name}({ ${parts.join(", ")} }${m.paramsOptional ? " = {}" : ""})`;
       return `${m.name}(${parts.join(", ")})`;
     }
 
@@ -94,7 +102,7 @@
         const res = await adminFetch("/api/admin/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classCode: code })
+          body: JSON.stringify({ classCode: code }),
         });
         const json = await res.json();
         if (!json.status) {
@@ -110,7 +118,9 @@
         analyzeResultEl.innerHTML =
           `<div class="msg ok">Class "${escapeHtml(analyzed.className)}" kedetect, ${analyzed.methods.length} method ketemu.</div>` +
           renderMessages(
-            analyzed.depWarnings.length ? [`Package belum ke-install: ${analyzed.depWarnings.join(", ")}`] : [],
+            analyzed.depWarnings.length
+              ? [`Package belum ke-install: ${analyzed.depWarnings.join(", ")}`]
+              : [],
             "warn"
           );
 
@@ -138,16 +148,21 @@
         wrap.innerHTML = `<div class="msg warn">Class ini gak punya method publik sama sekali.</div>`;
         return;
       }
-      wrap.innerHTML = analyzed.methods.map((m) => {
-        const validationLabel = m.validation && m.validation.lines.length ? ` · ${m.validation.lines.join(" ")}` : "";
-        const internalLabel = m.isCalledInternally ? ` · 🔗 dipanggil internal (kemungkinan helper, gak wajib jadi endpoint)` : "";
-        return `
+      wrap.innerHTML = analyzed.methods
+        .map((m) => {
+          const validationLabel =
+            m.validation && m.validation.lines.length ? ` · ${m.validation.lines.join(" ")}` : "";
+          const internalLabel = m.isCalledInternally
+            ? ` · 🔗 dipanggil internal (kemungkinan helper, gak wajib jadi endpoint)`
+            : "";
+          return `
         <div class="method-card" data-name="${escapeHtml(m.name)}">
           <div class="mname">${escapeHtml(signatureLabel(m))}</div>
           <div class="msig">${m.isAsync ? "async" : "sync"}${m.isArrowField ? " · arrow field" : ""}${escapeHtml(internalLabel)}${escapeHtml(validationLabel)}</div>
         </div>
       `;
-      }).join("");
+        })
+        .join("");
       wrap.querySelectorAll(".method-card").forEach((card) => {
         card.addEventListener("click", () => selectMethod(card.dataset.name, pendingParamPrefill));
       });
@@ -155,9 +170,11 @@
 
     function selectMethod(name, prefillParams) {
       selectedMethodName = name;
-      $("methodList").querySelectorAll(".method-card").forEach((c) => {
-        c.classList.toggle("selected", c.dataset.name === name);
-      });
+      $("methodList")
+        .querySelectorAll(".method-card")
+        .forEach((c) => {
+          c.classList.toggle("selected", c.dataset.name === name);
+        });
       const m = analyzed.methods.find((x) => x.name === name);
       if (!m) return;
       renderMethodParams(m, prefillParams);
@@ -173,23 +190,24 @@
         return;
       }
       const metaList = method.paramsMeta || [];
-      wrap.innerHTML = method.paramNames.map((n, i) => {
-        const meta = metaList[i] || {};
-        const isRest = meta.kind === "rest";
-        const isAlias = meta.kind === "alias";
-        const hasDefault = !!meta.hasDefault;
-        let badge = "";
-        if (isRest) badge = " · rest (nampung sisa properti apa aja)";
-        else if (isAlias) badge = ` · alias → var lokal "${meta.target}" di service`;
-        if (hasDefault) badge += ` · default: ${meta.defaultValue}`;
-        const lockRequired = isRest || hasDefault;
-        const pre = prefillMap.get(n);
-        const reqName = pre ? pre.requestParamName : n;
-        const isChecked = pre ? pre.required : !lockRequired;
-        const checked = lockRequired ? "" : (isChecked ? "checked" : "");
-        const disabled = lockRequired ? "disabled" : "";
-        const descVal = pre ? (pre.desc || "") : "";
-        return `
+      wrap.innerHTML = method.paramNames
+        .map((n, i) => {
+          const meta = metaList[i] || {};
+          const isRest = meta.kind === "rest";
+          const isAlias = meta.kind === "alias";
+          const hasDefault = !!meta.hasDefault;
+          let badge = "";
+          if (isRest) badge = " · rest (nampung sisa properti apa aja)";
+          else if (isAlias) badge = ` · alias → var lokal "${meta.target}" di service`;
+          if (hasDefault) badge += ` · default: ${meta.defaultValue}`;
+          const lockRequired = isRest || hasDefault;
+          const pre = prefillMap.get(n);
+          const reqName = pre ? pre.requestParamName : n;
+          const isChecked = pre ? pre.required : !lockRequired;
+          const checked = lockRequired ? "" : isChecked ? "checked" : "";
+          const disabled = lockRequired ? "disabled" : "";
+          const descVal = pre ? pre.desc || "" : "";
+          return `
         <div class="param-row" data-svc="${escapeHtml(n)}">
           <div class="svc-key" title="nama parameter di service">${escapeHtml(n)}${escapeHtml(badge)}</div>
           <input type="text" class="p-reqname" placeholder="nama field request" value="${escapeHtml(reqName)}">
@@ -198,7 +216,8 @@
         </div>
         <input type="text" class="p-desc" placeholder="deskripsi parameter '${escapeHtml(n)}'" value="${escapeHtml(descVal)}" style="margin-top:-4px;">
       `;
-      }).join("");
+        })
+        .join("");
     }
 
     function renderCtorSection(prefillCtor) {
@@ -212,11 +231,12 @@
       }
       const prefillMap = new Map((prefillCtor || []).map((p) => [p.serviceParamName, p]));
       ctorWrap.style.display = "block";
-      listEl.innerHTML = ctor.paramNames.map((n) => {
-        const pre = prefillMap.get(n);
-        const source = pre ? pre.source : "request";
-        const value = pre ? (pre.source === "static" ? pre.staticValue : pre.requestParamName) : n;
-        return `
+      listEl.innerHTML = ctor.paramNames
+        .map((n) => {
+          const pre = prefillMap.get(n);
+          const source = pre ? pre.source : "request";
+          const value = pre ? (pre.source === "static" ? pre.staticValue : pre.requestParamName) : n;
+          return `
         <div class="ctor-row" data-svc="${escapeHtml(n)}">
           <div class="svc-key" title="nama parameter constructor">${escapeHtml(n)}</div>
           <select class="c-source">
@@ -227,7 +247,8 @@
           <div></div>
         </div>
       `;
-      }).join("");
+        })
+        .join("");
       listEl.querySelectorAll(".ctor-row").forEach((row) => {
         const source = row.querySelector(".c-source");
         const valueInput = row.querySelector(".c-value");
@@ -247,25 +268,42 @@
     /* ---------------- Build payload ---------------- */
     function buildPayload() {
       const methodParams = [];
-      $("methodParamsList").querySelectorAll(".param-row").forEach((row) => {
-        const serviceParamName = row.dataset.svc;
-        const requestParamName = row.querySelector(".p-reqname").value.trim() || serviceParamName;
-        const required = row.querySelector(".p-req").checked;
-        const descInput = row.nextElementSibling && row.nextElementSibling.classList.contains("p-desc") ? row.nextElementSibling : null;
-        methodParams.push({ serviceParamName, requestParamName, required, desc: descInput ? descInput.value.trim() : "" });
-      });
+      $("methodParamsList")
+        .querySelectorAll(".param-row")
+        .forEach((row) => {
+          const serviceParamName = row.dataset.svc;
+          const requestParamName = row.querySelector(".p-reqname").value.trim() || serviceParamName;
+          const required = row.querySelector(".p-req").checked;
+          const descInput =
+            row.nextElementSibling && row.nextElementSibling.classList.contains("p-desc")
+              ? row.nextElementSibling
+              : null;
+          methodParams.push({
+            serviceParamName,
+            requestParamName,
+            required,
+            desc: descInput ? descInput.value.trim() : "",
+          });
+        });
 
       const ctorParams = [];
-      $("ctorParamsList").querySelectorAll(".ctor-row").forEach((row) => {
-        const serviceParamName = row.dataset.svc;
-        const source = row.querySelector(".c-source").value;
-        const value = row.querySelector(".c-value").value.trim();
-        if (source === "static") {
-          ctorParams.push({ serviceParamName, source: "static", staticValue: value });
-        } else {
-          ctorParams.push({ serviceParamName, source: "request", requestParamName: value || serviceParamName, required: true });
-        }
-      });
+      $("ctorParamsList")
+        .querySelectorAll(".ctor-row")
+        .forEach((row) => {
+          const serviceParamName = row.dataset.svc;
+          const source = row.querySelector(".c-source").value;
+          const value = row.querySelector(".c-value").value.trim();
+          if (source === "static") {
+            ctorParams.push({ serviceParamName, source: "static", staticValue: value });
+          } else {
+            ctorParams.push({
+              serviceParamName,
+              source: "request",
+              requestParamName: value || serviceParamName,
+              required: true,
+            });
+          }
+        });
 
       const payload = {
         classCode: $("classCode").value,
@@ -282,7 +320,7 @@
         endpointName: $("endpointName").value.trim(),
         endpointDesc: $("endpointDesc").value.trim(),
         categoryMode: catMode,
-        autoInstallDeps: $("autoInstallDeps").checked
+        autoInstallDeps: $("autoInstallDeps").checked,
       };
 
       if (catMode === "existing") {
@@ -292,7 +330,7 @@
           id: $("newCatId").value.trim(),
           tag: $("newCatTag").value.trim(),
           label: $("newCatLabel").value.trim(),
-          desc: $("newCatDesc").value.trim()
+          desc: $("newCatDesc").value.trim(),
         };
       }
       return payload;
@@ -318,9 +356,15 @@
       setCategoryMode,
       selectMethod,
       renderCtorSection,
-      setParamPrefill(arr) { pendingParamPrefill = arr; },
-      onAnalyzed(cb) { onAnalyzedCb = cb; },
-      getAnalyzed() { return analyzed; }
+      setParamPrefill(arr) {
+        pendingParamPrefill = arr;
+      },
+      onAnalyzed(cb) {
+        onAnalyzedCb = cb;
+      },
+      getAnalyzed() {
+        return analyzed;
+      },
     };
   }
 

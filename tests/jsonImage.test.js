@@ -22,7 +22,7 @@ describe("renderJsonImage (unit)", () => {
   test("object nested + array (bentuk respons API beneran) -> PNG valid", async () => {
     const buf = await renderJsonImage({
       status: true,
-      result: [{ title: "Naruto", views: 123, hd: false, extra: null }]
+      result: [{ title: "Naruto", views: 123, hd: false, extra: null }],
     });
     assert.ok(isPng(buf));
   });
@@ -108,9 +108,7 @@ describe("?format=image (integration, HTTP asli)", () => {
   });
 
   test("endpoint yang emang balikin PNG (canvas) + format=image -> gak dobel-render", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/canvas/welcome?name=Kyynzh&format=image&apikey=key-img-test`
-    );
+    const res = await fetch(`${baseUrl}/api/canvas/welcome?name=Kyynzh&format=image&apikey=key-img-test`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "image/png");
     assert.ok(isPng(Buffer.from(await res.arrayBuffer())));

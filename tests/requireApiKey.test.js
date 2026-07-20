@@ -14,10 +14,18 @@ function run({ path, apiKey } = {}) {
   let statusCode = null;
   let jsonBody = null;
   const res = {
-    status(code) { statusCode = code; return this; },
-    json(body) { jsonBody = body; return this; }
+    status(code) {
+      statusCode = code;
+      return this;
+    },
+    json(body) {
+      jsonBody = body;
+      return this;
+    },
   };
-  requireApiKey(req, res, () => { nextCalled = true; });
+  requireApiKey(req, res, () => {
+    nextCalled = true;
+  });
   return { nextCalled, statusCode, jsonBody };
 }
 
@@ -58,7 +66,15 @@ describe("requireApiKey", () => {
   test("req.client belum di-set sama sekali -> 401 (bukan crash)", () => {
     const req = { path: "/anime/search" };
     let status = null;
-    const res = { status(c) { status = c; return this; }, json() { return this; } };
+    const res = {
+      status(c) {
+        status = c;
+        return this;
+      },
+      json() {
+        return this;
+      },
+    };
     requireApiKey(req, res, () => {});
     assert.equal(status, 401);
   });

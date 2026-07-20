@@ -14,9 +14,9 @@ class YouTubeSearch {
         accept: "*/*",
         "accept-language": "en-US,en;q=0.9",
         "user-agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
       },
-      params: { search_query: query }
+      params: { search_query: query },
     });
 
     const match =
@@ -43,7 +43,7 @@ class YouTubeSearch {
           views: d.viewCountText?.simpleText || "",
           duration: d.lengthText?.accessibility?.accessibilityData?.label || "",
           thumbnail: d.thumbnail?.thumbnails?.pop()?.url || "",
-          published: d.publishedTimeText?.simpleText || ""
+          published: d.publishedTimeText?.simpleText || "",
         };
       });
   }

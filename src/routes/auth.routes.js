@@ -26,11 +26,13 @@ router.get("/google", (req, res, next) => {
   if (!googleEnabled) {
     return res
       .status(503)
-      .send("Login Google belum dikonfigurasi di server (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET kosong di .env).");
+      .send(
+        "Login Google belum dikonfigurasi di server (GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET kosong di .env)."
+      );
   }
   passport.authenticate("google", {
     scope: ["profile", "email"],
-    state: safeNext(req.query.next)
+    state: safeNext(req.query.next),
   })(req, res, next);
 });
 
@@ -48,11 +50,13 @@ router.get("/github", (req, res, next) => {
   if (!githubEnabled) {
     return res
       .status(503)
-      .send("Login GitHub belum dikonfigurasi di server (GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET kosong di .env).");
+      .send(
+        "Login GitHub belum dikonfigurasi di server (GITHUB_CLIENT_ID/GITHUB_CLIENT_SECRET kosong di .env)."
+      );
   }
   passport.authenticate("github", {
     scope: ["user:email"],
-    state: safeNext(req.query.next)
+    state: safeNext(req.query.next),
   })(req, res, next);
 });
 
@@ -119,7 +123,9 @@ router.get("/me", (req, res) => {
       if (apiClient && req.session?.adminDocs && apiClient.tier !== "admin") {
         apiClient = promoteClientToAdmin(apiClient.apiKey) || apiClient;
       }
-    } catch { /* provisioning best-effort — jangan gagalin /auth/me */ }
+    } catch {
+      /* provisioning best-effort — jangan gagalin /auth/me */
+    }
   }
   // Response sekarang bawa secret (API key) — jangan sampai ke-cache di
   // layer mana pun.
@@ -129,7 +135,7 @@ router.get("/me", (req, res) => {
     user: req.user || null,
     adminDocs: !!(req.session && req.session.adminDocs),
     apiKey: apiClient ? apiClient.apiKey : null,
-    apiTier: apiClient ? apiClient.tier : null
+    apiTier: apiClient ? apiClient.tier : null,
   });
 });
 

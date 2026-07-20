@@ -1,6 +1,7 @@
 (async function () {
   "use strict";
-  const { $, adminFetch, escapeHtml, renderMessages, renderFiles, renderNav, guardAdminAccess } = window.AdminShared;
+  const { $, adminFetch, escapeHtml, renderMessages, renderFiles, renderNav, guardAdminAccess } =
+    window.AdminShared;
   if (!(await guardAdminAccess())) return;
   renderNav("add");
 
@@ -36,10 +37,11 @@
 
   function renderBatchList(analyzed) {
     const el = $("batchList");
-    el.innerHTML = analyzed.methods.map((m) => {
-      const suggested = "/" + m.name.toLowerCase();
-      const internal = m.isCalledInternally;
-      return `
+    el.innerHTML = analyzed.methods
+      .map((m) => {
+        const suggested = "/" + m.name.toLowerCase();
+        const internal = m.isCalledInternally;
+        return `
         <div class="param-row batch-row" data-method="${escapeHtml(m.name)}" style="grid-template-columns:auto 1fr 1fr;">
           <label style="display:flex; align-items:center; gap:6px; margin:0; cursor:pointer;">
             <input type="checkbox" class="b-pick" style="width:auto;" ${internal ? "" : "checked"}>
@@ -48,30 +50,52 @@
           <input type="text" class="b-subpath" value="${escapeHtml(suggested)}" placeholder="/sub-path">
           <input type="text" class="b-name" value="${escapeHtml(m.name)}" placeholder="nama endpoint">
         </div>`;
-    }).join("");
+      })
+      .join("");
   }
 
   function buildBatchPayload() {
     const base = form.buildPayload();
     const analyzed = form.getAnalyzed();
     const endpoints = [];
-    $("batchList").querySelectorAll(".batch-row").forEach((row) => {
-      if (!row.querySelector(".b-pick").checked) return;
-      const methodName = row.dataset.method;
-      const m = analyzed.methods.find((x) => x.name === methodName);
-      endpoints.push({
-        selectedMethod: methodName,
-        subPath: row.querySelector(".b-subpath").value.trim() || "/" + methodName.toLowerCase(),
-        httpMethod: base.httpMethod,
-        endpointName: row.querySelector(".b-name").value.trim() || methodName,
-        endpointDesc: base.endpointDesc,
-        // Mapping otomatis: nama field request = nama parameter service.
-        methodParams: (m ? m.paramNames : []).map((n) => ({ serviceParamName: n, requestParamName: n, required: true })),
-        ctorParams: base.ctorParams
+    $("batchList")
+      .querySelectorAll(".batch-row")
+      .forEach((row) => {
+        if (!row.querySelector(".b-pick").checked) return;
+        const methodName = row.dataset.method;
+        const m = analyzed.methods.find((x) => x.name === methodName);
+        endpoints.push({
+          selectedMethod: methodName,
+          subPath: row.querySelector(".b-subpath").value.trim() || "/" + methodName.toLowerCase(),
+          httpMethod: base.httpMethod,
+          endpointName: row.querySelector(".b-name").value.trim() || methodName,
+          endpointDesc: base.endpointDesc,
+          // Mapping otomatis: nama field request = nama parameter service.
+          methodParams: (m ? m.paramNames : []).map((n) => ({
+            serviceParamName: n,
+            requestParamName: n,
+            required: true,
+          })),
+          ctorParams: base.ctorParams,
+        });
       });
-    });
-    const { selectedMethod, subPath, httpMethod, endpointName, endpointDesc, methodParams, ctorParams, ...shared } = base;
-    return { ...shared, httpMethod: base.httpMethod, endpointDesc: base.endpointDesc, ctorParams: base.ctorParams, endpoints };
+    const {
+      selectedMethod,
+      subPath,
+      httpMethod,
+      endpointName,
+      endpointDesc,
+      methodParams,
+      ctorParams,
+      ...shared
+    } = base;
+    return {
+      ...shared,
+      httpMethod: base.httpMethod,
+      endpointDesc: base.endpointDesc,
+      ctorParams: base.ctorParams,
+      endpoints,
+    };
   }
 
   $("previewBtn").addEventListener("click", async () => {
@@ -88,7 +112,7 @@
       const res = await adminFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(lastPayload)
+        body: JSON.stringify(lastPayload),
       });
       const json = await res.json();
       if (!json.status) {
@@ -115,11 +139,14 @@
       const res = await adminFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(lastPayload)
+        body: JSON.stringify(lastPayload),
       });
       const json = await res.json();
       if (!json.status) {
-        resultEl.innerHTML += renderMessages([json.error || "Gagal apply (semua perubahan sudah di-rollback, project aman)"], "err");
+        resultEl.innerHTML += renderMessages(
+          [json.error || "Gagal apply (semua perubahan sudah di-rollback, project aman)"],
+          "err"
+        );
         $("applyBtn").disabled = false;
         return;
       }
@@ -132,7 +159,8 @@
       if (batchMode) return; // verify satuan cuma buat mode single
 
       $("verifyWrap").style.display = "block";
-      $("verifyResult").innerHTML = `<div class="msg">Nunggu server restart (nodemon) sebelum bisa di-test...</div>`;
+      $("verifyResult").innerHTML =
+        `<div class="msg">Nunggu server restart (nodemon) sebelum bisa di-test...</div>`;
       setTimeout(runVerify, 2500);
     } catch (e) {
       resultEl.innerHTML += renderMessages(["Request gagal: " + e.message], "err");
@@ -145,21 +173,29 @@
     const verifyResultEl = $("verifyResult");
     verifyResultEl.innerHTML = `<div class="msg">Testing endpoint...</div>`;
     const testParams = {};
-    $("methodParamsList").querySelectorAll(".param-row").forEach((row) => {
-      const reqName = row.querySelector(".p-reqname").value.trim();
-      if (reqName) testParams[reqName] = "test";
-    });
-    $("ctorParamsList").querySelectorAll(".ctor-row").forEach((row) => {
-      if (row.querySelector(".c-source").value === "request") {
-        const v = row.querySelector(".c-value").value.trim();
-        if (v) testParams[v] = "test";
-      }
-    });
+    $("methodParamsList")
+      .querySelectorAll(".param-row")
+      .forEach((row) => {
+        const reqName = row.querySelector(".p-reqname").value.trim();
+        if (reqName) testParams[reqName] = "test";
+      });
+    $("ctorParamsList")
+      .querySelectorAll(".ctor-row")
+      .forEach((row) => {
+        if (row.querySelector(".c-source").value === "request") {
+          const v = row.querySelector(".c-value").value.trim();
+          if (v) testParams[v] = "test";
+        }
+      });
     try {
       const res = await adminFetch("/api/admin/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullPath: lastApplyResult.fullPath, method: lastApplyResult.method, testParams })
+        body: JSON.stringify({
+          fullPath: lastApplyResult.fullPath,
+          method: lastApplyResult.method,
+          testParams,
+        }),
       });
       const json = await res.json();
       const r = json.result || {};

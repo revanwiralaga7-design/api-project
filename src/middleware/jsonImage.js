@@ -31,7 +31,10 @@ export function jsonImage(req, res, next) {
   res.json = (data) => {
     // Judul title bar dari path-nya: /api/youtube/search -> youtube-search.json
     const title =
-      fullPath.replace(/^\/api\/?/, "").replace(/\//g, "-").replace(/[^\w.-]/g, "") + ".json";
+      fullPath
+        .replace(/^\/api\/?/, "")
+        .replace(/\//g, "-")
+        .replace(/[^\w.-]/g, "") + ".json";
     renderJsonImage(data, title || "response.json")
       .then((png) => {
         res.set("Content-Type", "image/png");

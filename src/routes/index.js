@@ -21,7 +21,7 @@ router.get("/", (req, res) => {
   res.json({
     status: true,
     message: "Selamat datang di Febry API. Lihat daftar endpoint di /api/endpoints",
-    endpoints: "/api/endpoints"
+    endpoints: "/api/endpoints",
   });
 });
 
@@ -37,16 +37,16 @@ router.get("/endpoints", (req, res) => {
         method: "GET/POST",
         path: "/api/canvas/jsoncard",
         params: ["<field bebas, mis. name, title, email, link>", "filename (opsional)"],
-        output: "image/png"
+        output: "image/png",
       },
       {
         name: "Welcome Card",
         method: "GET/POST",
         path: "/api/canvas/welcome",
         params: ["name", "subtitle (opsional)"],
-        output: "image/png"
-      }
-    ]
+        output: "image/png",
+      },
+    ],
   });
 });
 
@@ -66,8 +66,8 @@ router.get("/me", (req, res) => {
       name: req.client?.id || null,
       // Asal key: "google"/"github" (auto-provision dari login docs) atau
       // null (key manual buatan admin / anonim).
-      provider: req.client?.provider || null
-    }
+      provider: req.client?.provider || null,
+    },
   });
 });
 

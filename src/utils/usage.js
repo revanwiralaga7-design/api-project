@@ -65,7 +65,12 @@ export function recordHit({ clientKey, tier, path: epPath, status }) {
   if (!clientKey || !epPath) return;
   const usage = load();
   const day = (usage[todayKey()] = usage[todayKey()] || {});
-  const entry = (day[clientKey] = day[clientKey] || { tier: tier || "free", total: 0, byPath: {}, statuses: {} });
+  const entry = (day[clientKey] = day[clientKey] || {
+    tier: tier || "free",
+    total: 0,
+    byPath: {},
+    statuses: {},
+  });
   entry.tier = tier || entry.tier;
   entry.total += 1;
   entry.byPath[epPath] = (entry.byPath[epPath] || 0) + 1;
@@ -99,7 +104,13 @@ export function usageSummary(days = 7) {
   for (const [day, clients] of Object.entries(usage)) {
     if (day < cutoff) continue;
     for (const [clientKey, entry] of Object.entries(clients)) {
-      const c = (byClient[clientKey] = byClient[clientKey] || { tier: entry.tier, total: 0, limited: 0, today: 0, byPath: {} });
+      const c = (byClient[clientKey] = byClient[clientKey] || {
+        tier: entry.tier,
+        total: 0,
+        limited: 0,
+        today: 0,
+        byPath: {},
+      });
       c.tier = entry.tier;
       c.total += entry.total || 0;
       c.limited += entry.limited || 0;

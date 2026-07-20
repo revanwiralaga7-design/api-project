@@ -21,7 +21,9 @@ const BACKUP_VERSION = 1;
 function collectBackupPaths() {
   const paths = new Set();
 
-  const addIfExists = (abs) => { if (fs.existsSync(abs)) paths.add(abs); };
+  const addIfExists = (abs) => {
+    if (fs.existsSync(abs)) paths.add(abs);
+  };
 
   addIfExists(CLIENTS_PATH);
   addIfExists(HEALTH_TESTS_PATH);
@@ -48,7 +50,7 @@ export function buildBackupBundle() {
     version: BACKUP_VERSION,
     createdAt: new Date().toISOString(),
     app: "febry-api",
-    files
+    files,
   };
 }
 
@@ -75,19 +77,28 @@ export function restoreBackupBundle(bundle, { snapshot } = {}) {
     "src/services" + path.sep,
     "src/config" + path.sep,
     "data" + path.sep,
-    "public" + path.sep + "data.js"
+    "public" + path.sep + "data.js",
   ].map((p) => p.split("/").join(path.sep));
   const ALLOWED_EXACT = new Set(["package.json", path.join("public", "data.js")]);
 
   const entries = [];
   const skipped = [];
   for (const [rel, content] of Object.entries(bundle.files)) {
-    if (typeof content !== "string") { skipped.push(`${rel} (isi bukan string)`); continue; }
+    if (typeof content !== "string") {
+      skipped.push(`${rel} (isi bukan string)`);
+      continue;
+    }
     const normalized = path.normalize(rel);
     const abs = path.resolve(ROOT, normalized);
-    if (!abs.startsWith(ROOT + path.sep)) { skipped.push(`${rel} (di luar project)`); continue; }
+    if (!abs.startsWith(ROOT + path.sep)) {
+      skipped.push(`${rel} (di luar project)`);
+      continue;
+    }
     const allowed = ALLOWED_EXACT.has(normalized) || ALLOWED_PREFIXES.some((p) => normalized.startsWith(p));
-    if (!allowed) { skipped.push(`${rel} (area tidak diizinkan)`); continue; }
+    if (!allowed) {
+      skipped.push(`${rel} (area tidak diizinkan)`);
+      continue;
+    }
     entries.push({ rel: normalized, abs, content });
   }
   if (!entries.length) throw new Error("Tidak ada file valid di bundle ini.");

@@ -7,11 +7,29 @@ import { asyncHandler } from "../../utils/asyncHandler.js";
 import { ok, ApiError } from "../../utils/response.js";
 import { listClients } from "../../utils/clients.js";
 import { ROOT, listAllEndpoints, snapshotFiles } from "../../utils/scaffold.js";
-import { recordHistory, listHistory, getHistoryEntry, rollbackHistory, deleteHistoryEntry } from "../../utils/history.js";
+import {
+  recordHistory,
+  listHistory,
+  getHistoryEntry,
+  rollbackHistory,
+  deleteHistoryEntry,
+} from "../../utils/history.js";
 import { usageSummary, flushUsage } from "../../utils/usage.js";
-import { loadCacheConfig, saveCacheConfig, clearResponseCache, cacheStats } from "../../middleware/responseCache.js";
+import {
+  loadCacheConfig,
+  saveCacheConfig,
+  clearResponseCache,
+  cacheStats,
+} from "../../middleware/responseCache.js";
 import { tailAccessLog, rotateIfNeeded } from "../../utils/accessLog.js";
-import { loadHealthTests, setHealthTest, deleteHealthTest, healthTestKey, runHealthCheck, buildOpenApiSpec } from "../../utils/health.js";
+import {
+  loadHealthTests,
+  setHealthTest,
+  deleteHealthTest,
+  healthTestKey,
+  runHealthCheck,
+  buildOpenApiSpec,
+} from "../../utils/health.js";
 import { buildBackupBundle, restoreBackupBundle } from "../../utils/backup.js";
 import { scheduleRestartAfterResponse } from "./planBuilders.js";
 
@@ -51,14 +69,16 @@ router.post(
       recordHistory({
         action: "rollback",
         summary: `Rollback: ${entry.summary}`,
-        snapshot: snapshotFiles(snapPaths)
+        snapshot: snapshotFiles(snapPaths),
       });
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     scheduleRestartAfterResponse(res);
     return ok(res, {
       message: `Rollback "${entry.summary}" berhasil. Server bakal auto-restart sebentar.`,
-      actions: result.actions
+      actions: result.actions,
     });
   })
 );
@@ -98,7 +118,10 @@ router.get(
         total: u.total,
         today: u.today,
         limited: u.limited,
-        topPaths: Object.entries(u.byPath).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([p, n]) => ({ path: p, hits: n }))
+        topPaths: Object.entries(u.byPath)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([p, n]) => ({ path: p, hits: n })),
       }))
       .sort((a, b) => b.total - a.total);
 
@@ -134,7 +157,10 @@ router.post(
     saveCacheConfig(config);
     clearResponseCache(); // rule berubah -> isi lama gak valid lagi
 
-    return ok(res, { message: ttl === 0 ? `Rule cache ${clean} dihapus.` : `Cache ${clean} di-set ${ttl} detik.`, config });
+    return ok(res, {
+      message: ttl === 0 ? `Rule cache ${clean} dihapus.` : `Cache ${clean} di-set ${ttl} detik.`,
+      config,
+    });
   })
 );
 
@@ -179,7 +205,7 @@ router.post(
     const known = listAllEndpoints().some((e) => e.path === epPath);
     if (!known) throw new ApiError(`Endpoint "${epPath}" tidak terdaftar.`, 404);
     if (assertFields !== undefined && !Array.isArray(assertFields)) {
-      throw new ApiError("assertFields harus array dot-path, mis. [\"result.url\"].", 400);
+      throw new ApiError('assertFields harus array dot-path, mis. ["result.url"].', 400);
     }
     setHealthTest({ method, path: epPath, params, assertFields });
     return ok(res, { message: `Test params buat ${epPath} disimpan.` });
@@ -259,16 +285,18 @@ router.post(
       historyId = recordHistory({
         action: "restore",
         summary: `Restore backup${bundle.createdAt ? ` (dibuat ${bundle.createdAt})` : ""} — ${result.written.length} file`,
-        snapshot: result.preSnapshot || {}
+        snapshot: result.preSnapshot || {},
       }).id;
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     scheduleRestartAfterResponse(res);
     return ok(res, {
       message: `${result.written.length} file di-restore. Server bakal auto-restart sebentar buat nge-load kode hasil restore — tunggu beberapa detik.`,
       written: result.written,
       skipped: result.skipped,
-      historyId
+      historyId,
     });
   })
 );

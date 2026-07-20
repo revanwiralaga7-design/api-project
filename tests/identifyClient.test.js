@@ -18,7 +18,7 @@ const FIXTURE = {
   "key-free-123": { name: "Klien Free", tier: "free" },
   "key-premium-456": { name: "Klien Premium", tier: "premium" },
   "key-admin-789": { name: "Klien Admin", tier: "admin" },
-  "key-invalid-tier": { name: "Rusak", tier: "bukan-tier-valid" }
+  "key-invalid-tier": { name: "Rusak", tier: "bukan-tier-valid" },
 };
 
 before(() => {
@@ -37,7 +37,7 @@ function fakeReq({ apiKey, query } = {}) {
     get(header) {
       if (header.toLowerCase() === "x-api-key" && apiKey) return apiKey;
       return undefined;
-    }
+    },
   };
 }
 

@@ -120,9 +120,7 @@ describe("/api/canvas/jsoncard (integration, HTTP asli)", () => {
   });
 
   test("GET dengan key + field -> 200 image/png, body PNG beneran", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/canvas/jsoncard?name=Kyynzh&title=Dev&apikey=key-canvas-test`
-    );
+    const res = await fetch(`${baseUrl}/api/canvas/jsoncard?name=Kyynzh&title=Dev&apikey=key-canvas-test`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "image/png");
     const buf = Buffer.from(await res.arrayBuffer());
@@ -140,9 +138,7 @@ describe("/api/canvas/jsoncard (integration, HTTP asli)", () => {
 
   test("filename & apikey gak ikut jadi field kartu (RESERVED)", async () => {
     // filename doang tanpa field lain = sama kayak kosong -> 400.
-    const res = await fetch(
-      `${baseUrl}/api/canvas/jsoncard?filename=profile.json&apikey=key-canvas-test`
-    );
+    const res = await fetch(`${baseUrl}/api/canvas/jsoncard?filename=profile.json&apikey=key-canvas-test`);
     assert.equal(res.status, 400);
   });
 
@@ -150,7 +146,7 @@ describe("/api/canvas/jsoncard (integration, HTTP asli)", () => {
     const res = await fetch(`${baseUrl}/api/canvas/jsoncard`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": "key-canvas-test" },
-      body: JSON.stringify({ filename: "me.json", fields: { name: "Kyynzh", role: "Backend" } })
+      body: JSON.stringify({ filename: "me.json", fields: { name: "Kyynzh", role: "Backend" } }),
     });
     assert.equal(res.status, 200);
     assert.equal(res.headers.get("content-type"), "image/png");
@@ -161,15 +157,13 @@ describe("/api/canvas/jsoncard (integration, HTTP asli)", () => {
     const res = await fetch(`${baseUrl}/api/canvas/jsoncard`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-api-key": "key-canvas-test" },
-      body: JSON.stringify({ name: "Kyynzh" })
+      body: JSON.stringify({ name: "Kyynzh" }),
     });
     assert.equal(res.status, 200);
   });
 
   test("query array (?name=a&name=b) -> gak error, ambil nilai pertama", async () => {
-    const res = await fetch(
-      `${baseUrl}/api/canvas/jsoncard?name=a&name=b&apikey=key-canvas-test`
-    );
+    const res = await fetch(`${baseUrl}/api/canvas/jsoncard?name=a&name=b&apikey=key-canvas-test`);
     assert.equal(res.status, 200);
   });
 

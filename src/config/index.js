@@ -12,7 +12,7 @@ export const config = {
   tierRateLimit: {
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS) || 60 * 60 * 1000, // 1 jam
     free: Number(process.env.RATE_LIMIT_FREE_PER_HOUR) || 100,
-    premium: Number(process.env.RATE_LIMIT_PREMIUM_PER_HOUR) || 1000
+    premium: Number(process.env.RATE_LIMIT_PREMIUM_PER_HOUR) || 1000,
   },
   // Kalau kosong, panel admin otomatis dimatikan (lihat middleware/adminAuth.js).
   // Bisa diisi lebih dari satu key, pisah pakai koma:
@@ -26,7 +26,7 @@ export const config = {
     .filter(Boolean),
   adminRateLimit: {
     windowMs: Number(process.env.ADMIN_RATE_LIMIT_WINDOW_MS) || 60_000,
-    max: Number(process.env.ADMIN_RATE_LIMIT_MAX) || 20
+    max: Number(process.env.ADMIN_RATE_LIMIT_MAX) || 20,
   },
   // Base URL publik project ini — dipakai buat nyusun callback URL OAuth
   // (harus PERSIS sama dengan yang didaftarin di Google Cloud Console /
@@ -44,18 +44,18 @@ export const config = {
     // menang kalau di-set (path FILE .sqlite, bukan direktori); kalau nggak,
     // ikut DATA_DIR (default ./data/sessions.sqlite) — biar satu env DATA_DIR
     // aja cukup mindahin SEMUA file runtime ke volume.
-    storePath: process.env.SESSION_STORE_PATH || path.join(DATA_DIR, "sessions.sqlite")
+    storePath: process.env.SESSION_STORE_PATH || path.join(DATA_DIR, "sessions.sqlite"),
   },
   oauth: {
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || ""
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
     },
     github: {
       clientId: process.env.GITHUB_CLIENT_ID || "",
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || ""
-    }
-  }
+      clientSecret: process.env.GITHUB_CLIENT_SECRET || "",
+    },
+  },
 };
 
 export default config;

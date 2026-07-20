@@ -1,57 +1,103 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Justice API — Dashboard Admin</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="shared.css">
-<style>
-  .ep-toolbar{display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;}
-  .ep-toolbar input{max-width:260px; margin-bottom:0;}
-  .ep-toolbar .spacer{flex:1;}
-  .cat-group{margin-bottom:4px;}
-  .cat-group-label{font-family:var(--mono); font-size:11px; color:var(--muted-2); text-transform:uppercase; letter-spacing:.06em; padding:14px 0 6px;}
-</style>
-</head>
-<body>
-<nav class="adminnav" id="adminnav"></nav>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Justice API — Dashboard Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .ep-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+      }
+      .ep-toolbar input {
+        max-width: 260px;
+        margin-bottom: 0;
+      }
+      .ep-toolbar .spacer {
+        flex: 1;
+      }
+      .cat-group {
+        margin-bottom: 4px;
+      }
+      .cat-group-label {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted-2);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding: 14px 0 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="adminnav" id="adminnav"></nav>
 
-<div class="page">
-  <div class="page-head">
-    <h1>Dashboard Admin</h1>
-    <p>Ringkasan API kamu — endpoint, kategori, dan client yang terdaftar. Klik endpoint buat edit, atau hapus langsung dari sini.</p>
-  </div>
+    <div class="page">
+      <div class="page-head">
+        <h1>Dashboard Admin</h1>
+        <p>
+          Ringkasan API kamu — endpoint, kategori, dan client yang terdaftar. Klik endpoint buat edit, atau
+          hapus langsung dari sini.
+        </p>
+      </div>
 
-  <div class="stat-grid" id="statGrid">
-    <div class="stat-card"><div class="stat-bar"></div><div class="stat-label">Total Endpoint</div><div class="stat-value" id="statEndpoints">—</div><div class="stat-sub" id="statEndpointsSub">memuat...</div></div>
-    <div class="stat-card"><div class="stat-bar" style="--stat-accent:var(--cyan)"></div><div class="stat-label">Kategori</div><div class="stat-value" id="statCategories">—</div><div class="stat-sub">grup dokumentasi</div></div>
-    <div class="stat-card"><div class="stat-bar" style="--stat-accent:var(--purple)"></div><div class="stat-label">Client Terdaftar</div><div class="stat-value" id="statClients">—</div><div class="stat-sub" id="statClientsSub">memuat...</div></div>
-    <div class="stat-card"><div class="stat-bar" style="--stat-accent:var(--green)"></div><div class="stat-label">Status Server</div><div class="stat-value" id="statServer" style="font-size:16px;">memeriksa...</div><div class="stat-sub" id="statServerSub">&nbsp;</div></div>
-  </div>
+      <div class="stat-grid" id="statGrid">
+        <div class="stat-card">
+          <div class="stat-bar"></div>
+          <div class="stat-label">Total Endpoint</div>
+          <div class="stat-value" id="statEndpoints">—</div>
+          <div class="stat-sub" id="statEndpointsSub">memuat...</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-bar" style="--stat-accent: var(--cyan)"></div>
+          <div class="stat-label">Kategori</div>
+          <div class="stat-value" id="statCategories">—</div>
+          <div class="stat-sub">grup dokumentasi</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-bar" style="--stat-accent: var(--purple)"></div>
+          <div class="stat-label">Client Terdaftar</div>
+          <div class="stat-value" id="statClients">—</div>
+          <div class="stat-sub" id="statClientsSub">memuat...</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-bar" style="--stat-accent: var(--green)"></div>
+          <div class="stat-label">Status Server</div>
+          <div class="stat-value" id="statServer" style="font-size: 16px">memeriksa...</div>
+          <div class="stat-sub" id="statServerSub">&nbsp;</div>
+        </div>
+      </div>
 
-  <div class="actions" style="margin-bottom:22px;">
-    <a class="btn btn-primary" href="/endpoint-add.html">+ Tambah Endpoint</a>
-    <a class="btn btn-secondary" href="/client-manager.html">Kelola Client / API Key</a>
-    <a class="btn btn-secondary" href="/index.html">Lihat Dokumentasi Publik</a>
-  </div>
+      <div class="actions" style="margin-bottom: 22px">
+        <a class="btn btn-primary" href="/endpoint-add.html">+ Tambah Endpoint</a>
+        <a class="btn btn-secondary" href="/client-manager.html">Kelola Client / API Key</a>
+        <a class="btn btn-secondary" href="/index.html">Lihat Dokumentasi Publik</a>
+      </div>
 
-  <div class="panel">
-    <h2>Daftar Endpoint</h2>
-    <div class="ep-toolbar">
-      <input type="text" id="epFilter" placeholder="cari nama / path / kategori...">
-      <div class="spacer"></div>
-      <span class="hint" id="epCount" style="margin:0;"></span>
+      <div class="panel">
+        <h2>Daftar Endpoint</h2>
+        <div class="ep-toolbar">
+          <input type="text" id="epFilter" placeholder="cari nama / path / kategori..." />
+          <div class="spacer"></div>
+          <span class="hint" id="epCount" style="margin: 0"></span>
+        </div>
+        <div id="epTableWrap"><div class="empty-hint">Memuat daftar endpoint...</div></div>
+      </div>
+
+      <div id="deleteModalMount"></div>
     </div>
-    <div id="epTableWrap"><div class="empty-hint">Memuat daftar endpoint...</div></div>
-  </div>
 
-  <div id="deleteModalMount"></div>
-</div>
-
-<script src="admin-shared.js"></script>
-<script src="admin-dashboard.js"></script>
-</body>
+    <script src="admin-shared.js"></script>
+    <script src="admin-dashboard.js"></script>
+  </body>
 </html>

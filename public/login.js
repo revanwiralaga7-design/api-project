@@ -62,7 +62,9 @@
         // disuruh login Google/GitHub lagi.
         try {
           await fetch("/auth/admin-session", { method: "POST", headers: { "x-admin-key": key } });
-        } catch { /* gak fatal — docs tinggal minta login provider */ }
+        } catch {
+          /* gak fatal — docs tinggal minta login provider */
+        }
         location.href = getNextUrl();
         return;
       }

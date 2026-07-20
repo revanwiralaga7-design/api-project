@@ -23,7 +23,7 @@ export function dailyQuota(req, res, next) {
     return res.status(429).json({
       status: false,
       error: `Kuota harian tercapai (${quota} request/hari). Reset otomatis besok (00:00 UTC).`,
-      quota: { daily: quota, used }
+      quota: { daily: quota, used },
     });
   }
   next();

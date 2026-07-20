@@ -31,7 +31,7 @@ export function requireApiKey(req, res, next) {
     error:
       "API key wajib disertakan: kirim header 'x-api-key: <key>' atau tambahkan '?apikey=<key>' di URL. " +
       "Belum punya? Login Google/GitHub di halaman dokumentasi — API key gratis dibuat otomatis buat akunmu.",
-    docs: "/signin.html"
+    docs: "/signin.html",
   });
 }
 

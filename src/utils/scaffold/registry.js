@@ -4,7 +4,15 @@
 // scaffold.js monolitik — logikanya tidak berubah.
 import fs from "fs";
 import path from "path";
-import { ROUTES_DIR, SERVICES_DIR, PUBLIC_DATA, findMatchingClose, escapeRegex, unescapeJsString, methodBucket } from "./core.js";
+import {
+  ROUTES_DIR,
+  SERVICES_DIR,
+  PUBLIC_DATA,
+  findMatchingClose,
+  escapeRegex,
+  unescapeJsString,
+  methodBucket,
+} from "./core.js";
 
 /* ------------------------------------------------------------------ */
 /* 6. Util baca daftar kategori & route file yang ada (buat dropdown)   */
@@ -85,7 +93,7 @@ export function listAllEndpoints() {
         categoryLabel,
         name: nameM ? nameM[1] : "",
         method: methodM ? methodM[1] : "ALL",
-        path: pathM[1]
+        path: pathM[1],
       });
     }
   }
@@ -98,7 +106,9 @@ export function listAllEndpoints() {
  */
 export function extractServiceImports(content) {
   const out = [];
-  for (const m of content.matchAll(/^import\s+(\w+)\s+from\s+["']\.\.\/services\/([\w.-]+)\.service\.js["'];?[ \t]*\n?/gm)) {
+  for (const m of content.matchAll(
+    /^import\s+(\w+)\s+from\s+["']\.\.\/services\/([\w.-]+)\.service\.js["'];?[ \t]*\n?/gm
+  )) {
     out.push({ className: m[1], serviceFileName: m[2], importLine: m[0] });
   }
   return out;
@@ -124,7 +134,9 @@ export function extractInstanceDecls(content) {
 export function isServiceUsedElsewhere(serviceFileName, excludeRouteFileBase) {
   const files = fs
     .readdirSync(ROUTES_DIR)
-    .filter((f) => f.endsWith(".routes.js") && f !== `${excludeRouteFileBase}.routes.js` && f !== "admin.routes.js");
+    .filter(
+      (f) => f.endsWith(".routes.js") && f !== `${excludeRouteFileBase}.routes.js` && f !== "admin.routes.js"
+    );
   const needle = `services/${serviceFileName}.service.js`;
   for (const f of files) {
     const c = fs.readFileSync(path.join(ROUTES_DIR, f), "utf8");
@@ -146,7 +158,11 @@ export function isServiceUsedElsewhere(serviceFileName, excludeRouteFileBase) {
  * mengandung teks "tiktokDownloader." dan bisa salah kedeteksi sebagai
  * pemakaian padahal itu cuma nama file.
  */
-export function computeOrphanedServices(originalRouteFileContent, newRouteFileContent, { willDeleteRouteFile, routeFileBase }) {
+export function computeOrphanedServices(
+  originalRouteFileContent,
+  newRouteFileContent,
+  { willDeleteRouteFile, routeFileBase }
+) {
   const serviceImports = extractServiceImports(originalRouteFileContent);
   const instanceDecls = extractInstanceDecls(originalRouteFileContent);
 
@@ -189,10 +205,14 @@ export function computeOrphanedServices(originalRouteFileContent, newRouteFileCo
  * di-mount di prefix tertentu lewat router.use("/prefix", xxxRoutes).
  */
 export function findRouteFileForSlug(indexContent, routeSlug) {
-  const useMatch = indexContent.match(new RegExp(`router\\.use\\(\\s*["']\\/${escapeRegex(routeSlug)}["']\\s*,\\s*(\\w+)\\s*\\)`));
+  const useMatch = indexContent.match(
+    new RegExp(`router\\.use\\(\\s*["']\\/${escapeRegex(routeSlug)}["']\\s*,\\s*(\\w+)\\s*\\)`)
+  );
   if (!useMatch) return null;
   const varName = useMatch[1];
-  const importMatch = indexContent.match(new RegExp(`import\\s+${varName}\\s+from\\s+["']\\.\\/(.+?)\\.routes\\.js["']`));
+  const importMatch = indexContent.match(
+    new RegExp(`import\\s+${varName}\\s+from\\s+["']\\.\\/(.+?)\\.routes\\.js["']`)
+  );
   if (!importMatch) return null;
   return importMatch[1];
 }
@@ -216,7 +236,9 @@ export function removeRouteBlock(content, { subPath, method }) {
   let match = matches[0];
   if (matches.length > 1 && method) {
     const wantBucket = methodBucket(method);
-    const exact = matches.find((m) => methodBucket(m[1]) === wantBucket || m[1].toUpperCase() === String(method).toUpperCase());
+    const exact = matches.find(
+      (m) => methodBucket(m[1]) === wantBucket || m[1].toUpperCase() === String(method).toUpperCase()
+    );
     if (exact) match = exact;
   }
 
@@ -260,8 +282,17 @@ export function countRouteBlocks(content) {
  */
 export function removeRouteFileRefFromIndex(content, routeSlug) {
   let out = content;
-  out = out.replace(new RegExp(`^import\\s+\\w+\\s+from\\s+["']\\.\\/${escapeRegex(routeSlug)}\\.routes\\.js["'];?\\s*\\n?`, "m"), "");
-  out = out.replace(new RegExp(`^router\\.use\\(\\s*["']\\/${escapeRegex(routeSlug)}["']\\s*,\\s*\\w+\\s*\\);?\\s*\\n?`, "m"), "");
+  out = out.replace(
+    new RegExp(
+      `^import\\s+\\w+\\s+from\\s+["']\\.\\/${escapeRegex(routeSlug)}\\.routes\\.js["'];?\\s*\\n?`,
+      "m"
+    ),
+    ""
+  );
+  out = out.replace(
+    new RegExp(`^router\\.use\\(\\s*["']\\/${escapeRegex(routeSlug)}["']\\s*,\\s*\\w+\\s*\\);?\\s*\\n?`, "m"),
+    ""
+  );
   return out;
 }
 
@@ -434,7 +465,7 @@ export function findEndpointObject(content, { path: targetPath, method }) {
       return {
         name: n ? unescapeJsString(n[1]) : "",
         required: r ? r[1] === "true" : false,
-        desc: d ? unescapeJsString(d[1]) : ""
+        desc: d ? unescapeJsString(d[1]) : "",
       };
     });
   }
@@ -447,6 +478,6 @@ export function findEndpointObject(content, { path: targetPath, method }) {
     path: targetPath,
     desc: descM ? unescapeJsString(descM[1]) : "",
     pathParams: parseParamArray("pathParams"),
-    query: parseParamArray("query")
+    query: parseParamArray("query"),
   };
 }

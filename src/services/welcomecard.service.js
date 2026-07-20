@@ -7,7 +7,7 @@ const THEME = {
   bgBottom: "#0f1420",
   accent: "#98C379",
   text: "#FFFFFF",
-  muted: "#8b98b8"
+  muted: "#8b98b8",
 };
 
 // Warna avatar dipilih dari hash nama — konsisten: nama sama warna sama.

@@ -76,9 +76,8 @@ router.all(
         400
       );
     }
-    const subtitle = typeof params.subtitle === "string" && params.subtitle.trim()
-      ? params.subtitle.trim()
-      : undefined;
+    const subtitle =
+      typeof params.subtitle === "string" && params.subtitle.trim() ? params.subtitle.trim() : undefined;
     const png = await renderWelcomeCard(name, subtitle);
     return sendPng(res, png);
   })

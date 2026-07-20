@@ -33,7 +33,7 @@ export function setHealthTest({ method, path: epPath, params, assertFields }) {
   const tests = loadHealthTests();
   const entry = {
     params: params && typeof params === "object" ? params : {},
-    updatedAt: new Date().toISOString()
+    updatedAt: new Date().toISOString(),
   };
   // assertFields: array dot-path yang WAJIB ada (dan non-null) di response
   // sukses, mis. ["result.url", "result.title"]. Nangkep kasus scraper
@@ -103,7 +103,11 @@ export async function runHealthCheck({ baseUrl, timeoutMs = 15000 } = {}) {
     const params = { ...(test?.params || {}) };
     const missingPathParams = pathParams.filter((p) => !params[p]);
     if (missingPathParams.length) {
-      results.push({ ...ep, status: "skipped", reason: `Belum ada nilai test buat path param: ${missingPathParams.join(", ")}` });
+      results.push({
+        ...ep,
+        status: "skipped",
+        reason: `Belum ada nilai test buat path param: ${missingPathParams.join(", ")}`,
+      });
       continue;
     }
 
@@ -137,10 +141,13 @@ export async function runHealthCheck({ baseUrl, timeoutMs = 15000 } = {}) {
         // berubah) — field wajib yang di-set di test params dicek satu-satu.
         const text = await resp.text();
         let body;
-        try { body = JSON.parse(text); } catch { body = undefined; }
-        const failures = body === undefined
-          ? ["response bukan JSON valid"]
-          : checkAssertions(body, test.assertFields);
+        try {
+          body = JSON.parse(text);
+        } catch {
+          body = undefined;
+        }
+        const failures =
+          body === undefined ? ["response bukan JSON valid"] : checkAssertions(body, test.assertFields);
         if (failures.length) {
           status = "degraded";
           assertFailures = failures;
@@ -150,7 +157,15 @@ export async function runHealthCheck({ baseUrl, timeoutMs = 15000 } = {}) {
         const text = await resp.text();
         bodyPreview = text.slice(0, 300);
       }
-      results.push({ ...ep, status, httpStatus: resp.status, ms, hasTestParams: !!test, bodyPreview, assertFailures });
+      results.push({
+        ...ep,
+        status,
+        httpStatus: resp.status,
+        ms,
+        hasTestParams: !!test,
+        bodyPreview,
+        assertFailures,
+      });
     } catch (err) {
       results.push({
         ...ep,
@@ -158,7 +173,7 @@ export async function runHealthCheck({ baseUrl, timeoutMs = 15000 } = {}) {
         httpStatus: null,
         ms: Date.now() - t0,
         hasTestParams: !!test,
-        error: err.name === "TimeoutError" ? `Timeout > ${timeoutMs}ms` : err.message
+        error: err.name === "TimeoutError" ? `Timeout > ${timeoutMs}ms` : err.message,
       });
     }
   }
@@ -190,15 +205,21 @@ export function buildOpenApiSpec({ baseUrl, title = "Febry API", version = "1.0.
 
     const parameters = [
       ...(detail.pathParams || []).map((p) => ({
-        name: p.name, in: "path", required: true,
-        description: p.desc || "", schema: { type: "string" }
+        name: p.name,
+        in: "path",
+        required: true,
+        description: p.desc || "",
+        schema: { type: "string" },
       })),
       ...(detail.query || [])
         .filter((p) => !p.name.startsWith("..."))
         .map((p) => ({
-          name: p.name, in: "query", required: !!p.required,
-          description: p.desc || "", schema: { type: "string" }
-        }))
+          name: p.name,
+          in: "query",
+          required: !!p.required,
+          description: p.desc || "",
+          schema: { type: "string" },
+        })),
     ];
 
     const bodyProps = {};
@@ -216,13 +237,13 @@ export function buildOpenApiSpec({ baseUrl, title = "Febry API", version = "1.0.
           "application/json": {
             schema: {
               type: "object",
-              properties: { status: { type: "boolean" }, result: {} }
-            }
-          }
-        }
+              properties: { status: { type: "boolean" }, result: {} },
+            },
+          },
+        },
       },
       400: { description: "Parameter kurang / tidak valid" },
-      429: { description: "Rate limit / kuota tercapai" }
+      429: { description: "Rate limit / kuota tercapai" },
     };
 
     const buckets = String(ep.method || "ALL").toUpperCase();
@@ -232,7 +253,7 @@ export function buildOpenApiSpec({ baseUrl, title = "Febry API", version = "1.0.
         summary: detail.name || ep.name,
         description: detail.desc || "",
         tags: [detail.categoryLabel || ep.categoryLabel || "API"],
-        responses
+        responses,
       };
       if (m === "get") {
         op.parameters = parameters;
@@ -245,10 +266,10 @@ export function buildOpenApiSpec({ baseUrl, title = "Febry API", version = "1.0.
                 schema: {
                   type: "object",
                   properties: bodyProps,
-                  ...(bodyRequired.length ? { required: bodyRequired } : {})
-                }
-              }
-            }
+                  ...(bodyRequired.length ? { required: bodyRequired } : {}),
+                },
+              },
+            },
           };
         }
       }
@@ -261,17 +282,25 @@ export function buildOpenApiSpec({ baseUrl, title = "Febry API", version = "1.0.
     info: {
       title,
       version,
-      description: "Digenerate otomatis dari dokumentasi endpoint (public/data.js)."
+      description: "Digenerate otomatis dari dokumentasi endpoint (public/data.js).",
     },
     servers: baseUrl ? [{ url: baseUrl }] : [],
     components: {
       securitySchemes: {
-        ApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" }
-      }
+        ApiKeyAuth: { type: "apiKey", in: "header", name: "x-api-key" },
+      },
     },
     security: [{ ApiKeyAuth: [] }, {}],
-    paths
+    paths,
   };
 }
 
-export default { loadHealthTests, saveHealthTests, setHealthTest, deleteHealthTest, runHealthCheck, buildOpenApiSpec, HEALTH_TESTS_PATH };
+export default {
+  loadHealthTests,
+  saveHealthTests,
+  setHealthTest,
+  deleteHealthTest,
+  runHealthCheck,
+  buildOpenApiSpec,
+  HEALTH_TESTS_PATH,
+};

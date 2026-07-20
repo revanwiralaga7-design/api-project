@@ -77,7 +77,7 @@ app.use(
       client: sessionDb,
       // Reap session kadaluarsa tiap 15 menit (MemoryStore dulu gak pernah
       // reap sama sekali — ini salah satu alasan pindah).
-      expired: { clear: true, intervalMs: 15 * 60 * 1000 }
+      expired: { clear: true, intervalMs: 15 * 60 * 1000 },
     }),
     secret: config.session.secret || "dev-only-secret-JANGAN-dipakai-produksi-ganti-di-.env",
     resave: false,
@@ -94,8 +94,8 @@ app.use(
       // Cuma dikirim lewat HTTPS pas production — kalau dipaksa true terus
       // waktu dev lokal (http://localhost), cookie gak akan pernah ke-set
       // dan login jadi keliatan gak nyantol padahal cuma soal ini.
-      secure: config.nodeEnv === "production"
-    }
+      secure: config.nodeEnv === "production",
+    },
   })
 );
 app.use(passport.initialize());
@@ -132,7 +132,7 @@ const adminLimiter = rateLimit({
   max: config.adminRateLimit.max,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { status: false, error: "Terlalu banyak request ke admin panel, coba lagi sebentar lagi." }
+  message: { status: false, error: "Terlalu banyak request ke admin panel, coba lagi sebentar lagi." },
 });
 app.use("/api/admin", adminLimiter);
 

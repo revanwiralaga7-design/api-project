@@ -1,6 +1,7 @@
 (async function () {
   "use strict";
-  const { $, adminFetch, escapeHtml, renderMessages, renderNav, guardAdminAccess, tierBadgeClass } = window.AdminShared;
+  const { $, adminFetch, escapeHtml, renderMessages, renderNav, guardAdminAccess, tierBadgeClass } =
+    window.AdminShared;
   if (!(await guardAdminAccess())) return;
   renderNav("clients");
 
@@ -42,7 +43,9 @@
       wrap.innerHTML = `<div class="empty-hint">Belum ada client. Buat yang pertama di form atas.</div>`;
       return;
     }
-    const rows = clients.map((c) => `
+    const rows = clients
+      .map(
+        (c) => `
       <tr data-key="${escapeHtml(c.apiKey)}">
         <td>${escapeHtml(c.name)}</td>
         <td><span class="badge ${tierBadgeClass(c.tier)}">${escapeHtml(c.tier)}</span>${c.expired ? ' <span class="badge" style="color:var(--red);border-color:var(--red);">EXPIRED</span>' : ""}</td>
@@ -62,7 +65,9 @@
           <button type="button" class="icon-btn danger revoke-btn" data-key="${escapeHtml(c.apiKey)}">Cabut</button>
         </td>
       </tr>
-    `).join("");
+    `
+      )
+      .join("");
 
     wrap.innerHTML = `
       <div class="table-scroll">
@@ -73,22 +78,33 @@
       </div>
     `;
 
-    wrap.querySelectorAll(".reveal-btn").forEach((btn) => btn.addEventListener("click", () => {
-      const k = btn.dataset.key;
-      if (revealed.has(k)) revealed.delete(k); else revealed.add(k);
-      renderTable();
-    }));
-    wrap.querySelectorAll(".copy-btn").forEach((btn) => btn.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(btn.dataset.key);
-        btn.textContent = "tersalin!";
-        setTimeout(() => { btn.textContent = "salin"; }, 1400);
-      } catch {
-        window.prompt("Salin manual:", btn.dataset.key);
-      }
-    }));
-    wrap.querySelectorAll(".edit-btn").forEach((btn) => btn.addEventListener("click", () => openEditModal(btn.dataset.key)));
-    wrap.querySelectorAll(".revoke-btn").forEach((btn) => btn.addEventListener("click", () => openRevokeModal(btn.dataset.key)));
+    wrap.querySelectorAll(".reveal-btn").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const k = btn.dataset.key;
+        if (revealed.has(k)) revealed.delete(k);
+        else revealed.add(k);
+        renderTable();
+      })
+    );
+    wrap.querySelectorAll(".copy-btn").forEach((btn) =>
+      btn.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(btn.dataset.key);
+          btn.textContent = "tersalin!";
+          setTimeout(() => {
+            btn.textContent = "salin";
+          }, 1400);
+        } catch {
+          window.prompt("Salin manual:", btn.dataset.key);
+        }
+      })
+    );
+    wrap
+      .querySelectorAll(".edit-btn")
+      .forEach((btn) => btn.addEventListener("click", () => openEditModal(btn.dataset.key)));
+    wrap
+      .querySelectorAll(".revoke-btn")
+      .forEach((btn) => btn.addEventListener("click", () => openRevokeModal(btn.dataset.key)));
   }
 
   /* ---------------- Buat client baru ---------------- */
@@ -108,7 +124,7 @@
       const res = await adminFetch("/api/admin/clients", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, tier, expiresAt, dailyQuota })
+        body: JSON.stringify({ name, tier, expiresAt, dailyQuota }),
       });
       const json = await res.json();
       if (!json.status) {
@@ -135,7 +151,9 @@
   });
 
   /* ---------------- Modal edit ---------------- */
-  function closeModal() { $("modalMount").innerHTML = ""; }
+  function closeModal() {
+    $("modalMount").innerHTML = "";
+  }
 
   function openEditModal(apiKey) {
     const c = clients.find((x) => x.apiKey === apiKey);
@@ -165,7 +183,9 @@
         </div>
       </div>
     `;
-    $("editBackdrop").addEventListener("click", (e) => { if (e.target.id === "editBackdrop") closeModal(); });
+    $("editBackdrop").addEventListener("click", (e) => {
+      if (e.target.id === "editBackdrop") closeModal();
+    });
     $("editCancelBtn").addEventListener("click", closeModal);
     $("editSaveBtn").addEventListener("click", async () => {
       const resultEl = $("editModalResult");
@@ -179,8 +199,8 @@
             name: $("editName").value.trim(),
             tier: $("editTier").value,
             expiresAt: $("editExpires").value,
-            dailyQuota: $("editQuota").value.trim()
-          })
+            dailyQuota: $("editQuota").value.trim(),
+          }),
         });
         const json = await res.json();
         if (!json.status) {
@@ -214,14 +234,18 @@
         </div>
       </div>
     `;
-    $("revokeBackdrop").addEventListener("click", (e) => { if (e.target.id === "revokeBackdrop") closeModal(); });
+    $("revokeBackdrop").addEventListener("click", (e) => {
+      if (e.target.id === "revokeBackdrop") closeModal();
+    });
     $("revokeCancelBtn").addEventListener("click", closeModal);
     $("revokeConfirmBtn").addEventListener("click", async () => {
       const resultEl = $("revokeModalResult");
       $("revokeConfirmBtn").disabled = true;
       resultEl.innerHTML = `<div class="msg">Mencabut...</div>`;
       try {
-        const res = await adminFetch(`/api/admin/clients/${encodeURIComponent(apiKey)}`, { method: "DELETE" });
+        const res = await adminFetch(`/api/admin/clients/${encodeURIComponent(apiKey)}`, {
+          method: "DELETE",
+        });
         const json = await res.json();
         if (!json.status) {
           resultEl.innerHTML = renderMessages([json.error || "Gagal mencabut"], "err");

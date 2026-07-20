@@ -29,7 +29,7 @@ import {
   compactDiff,
   snapshotFiles,
   withRollback,
-  findEndpointObject
+  findEndpointObject,
 } from "../../utils/scaffold.js";
 import { recordHistory } from "../../utils/history.js";
 import { setHealthTest, deleteHealthTest } from "../../utils/health.js";
@@ -39,7 +39,7 @@ import {
   safeExtractClassMethods,
   buildPlan,
   buildDeletePlan,
-  buildBatchPlans
+  buildBatchPlans,
 } from "./planBuilders.js";
 
 const router = Router();
@@ -79,7 +79,7 @@ router.post(
           // true kalau method ini dipanggil dari dalam class-nya sendiri
           // (this.xxx() / NamaClass.xxx()) — kemungkinan helper internal,
           // gak wajib dijadikan endpoint sendiri.
-          isCalledInternally: internallyCalled.has(m.name)
+          isCalledInternally: internallyCalled.has(m.name),
         })),
       constructor: ctor
         ? {
@@ -87,10 +87,16 @@ router.post(
             paramNames: ctor.params.names,
             paramsMeta: ctor.params.params,
             paramsOptional: ctor.params.optional,
-            validation: validateParsedMethodParams(ctor.params)
+            validation: validateParsedMethodParams(ctor.params),
           }
-        : { paramStyle: "none", paramNames: [], paramsMeta: [], paramsOptional: false, validation: { ok: true, lines: [], summary: "Parser OK" } },
-      depWarnings
+        : {
+            paramStyle: "none",
+            paramNames: [],
+            paramsMeta: [],
+            paramsOptional: false,
+            validation: { ok: true, lines: [], summary: "Parser OK" },
+          },
+      depWarnings,
     });
   })
 );
@@ -118,7 +124,7 @@ router.get(
   asyncHandler(async (req, res) => {
     return ok(res, {
       categories: listExistingCategories(),
-      routeFiles: listExistingRouteFiles()
+      routeFiles: listExistingRouteFiles(),
     });
   })
 );
@@ -134,48 +140,60 @@ router.post(
 
     const warnings = [];
     if (plan.depWarnings.length) {
-      warnings.push(`Package belum ke-install: ${plan.depWarnings.join(", ")}. Jalankan "npm install ${plan.depWarnings.join(" ")}", atau centang "auto update package.json".`);
+      warnings.push(
+        `Package belum ke-install: ${plan.depWarnings.join(", ")}. Jalankan "npm install ${plan.depWarnings.join(" ")}", atau centang "auto update package.json".`
+      );
     }
-    if (plan.serviceExists) warnings.push(`src/services/${plan.serviceFileName}.service.js sudah ada dan akan DITIMPA.`);
-    if (plan.usesPerRequestInstance) warnings.push(`Constructor class ini butuh argumen, jadi instance-nya dibuat ULANG setiap request (bukan sekali di atas file).`);
+    if (plan.serviceExists)
+      warnings.push(`src/services/${plan.serviceFileName}.service.js sudah ada dan akan DITIMPA.`);
+    if (plan.usesPerRequestInstance)
+      warnings.push(
+        `Constructor class ini butuh argumen, jadi instance-nya dibuat ULANG setiap request (bukan sekali di atas file).`
+      );
 
     const files = [
       {
         path: `src/services/${plan.serviceFileName}.service.js`,
         isNew: !plan.serviceExists,
         content: plan.serviceFileContent,
-        diff: plan.serviceExists ? compactDiff(diffLines(fs.readFileSync(plan.servicePath, "utf8"), plan.serviceFileContent)) : null
+        diff: plan.serviceExists
+          ? compactDiff(diffLines(fs.readFileSync(plan.servicePath, "utf8"), plan.serviceFileContent))
+          : null,
       },
       {
         path: `src/routes/${plan.routeSlug}.routes.js`,
         isNew: plan.isNewRouteFile,
         content: plan.routeFileContent,
-        diff: plan.isNewRouteFile ? null : compactDiff(diffLines(plan.originalRouteFileContent, plan.routeFileContent))
+        diff: plan.isNewRouteFile
+          ? null
+          : compactDiff(diffLines(plan.originalRouteFileContent, plan.routeFileContent)),
       },
       {
         path: "src/routes/index.js",
         isNew: false,
-        diff: compactDiff(diffLines(plan.originalIndexContent, plan.indexContent))
+        diff: compactDiff(diffLines(plan.originalIndexContent, plan.indexContent)),
       },
       {
         path: "public/data.js",
         isNew: false,
-        diff: compactDiff(diffLines(plan.originalDataContent, plan.dataContent))
-      }
+        diff: compactDiff(diffLines(plan.originalDataContent, plan.dataContent)),
+      },
     ];
     if (plan.packageJsonContent) {
       files.push({
         path: "package.json",
         isNew: false,
-        diff: compactDiff(diffLines(fs.readFileSync(PKG_PATH, "utf8"), plan.packageJsonContent))
+        diff: compactDiff(diffLines(fs.readFileSync(PKG_PATH, "utf8"), plan.packageJsonContent)),
       });
-      warnings.push(`package.json akan diupdate otomatis: nambahin ${plan.depsAdded.join(", ") || "(tidak ada yang baru)"}.`);
+      warnings.push(
+        `package.json akan diupdate otomatis: nambahin ${plan.depsAdded.join(", ") || "(tidak ada yang baru)"}.`
+      );
     }
 
     return ok(res, {
       warnings,
       files,
-      summary: { fullPath: plan.fullPath, method: plan.method }
+      summary: { fullPath: plan.fullPath, method: plan.method },
     });
   })
 );
@@ -190,7 +208,7 @@ router.post(
       plan.routeFilePath,
       ROUTES_INDEX,
       PUBLIC_DATA,
-      ...(plan.packageJsonContent ? [PKG_PATH] : [])
+      ...(plan.packageJsonContent ? [PKG_PATH] : []),
     ];
 
     // Snapshot buat riwayat (fitur undo) — diambil SEBELUM nulis apa pun.
@@ -209,9 +227,11 @@ router.post(
       historyId = recordHistory({
         action: "add",
         summary: `Tambah endpoint ${plan.method} ${plan.fullPath}`,
-        snapshot: historySnapshot
+        snapshot: historySnapshot,
       }).id;
-    } catch { /* riwayat best-effort, jangan gagalin apply */ }
+    } catch {
+      /* riwayat best-effort, jangan gagalin apply */
+    }
 
     // Simpan test params buat health check (kalau dikirim frontend).
     try {
@@ -220,14 +240,17 @@ router.post(
           method: plan.method,
           path: plan.fullPath,
           params: req.body.testParams,
-          assertFields: Array.isArray(req.body.assertFields) ? req.body.assertFields : undefined
+          assertFields: Array.isArray(req.body.assertFields) ? req.body.assertFields : undefined,
         });
       }
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     scheduleRestartAfterResponse(res);
     return ok(res, {
-      message: "Endpoint baru berhasil dibuat. Server bakal auto-restart sebentar (kalau jalan via PM2/'npm start') atau nodemon (kalau 'npm run dev') buat nge-load file barunya — tunggu beberapa detik sebelum test endpoint-nya.",
+      message:
+        "Endpoint baru berhasil dibuat. Server bakal auto-restart sebentar (kalau jalan via PM2/'npm start') atau nodemon (kalau 'npm run dev') buat nge-load file barunya — tunggu beberapa detik sebelum test endpoint-nya.",
       fullPath: plan.fullPath,
       method: plan.method,
       depsAdded: plan.depsAdded,
@@ -237,8 +260,8 @@ router.post(
         `src/routes/${plan.routeSlug}.routes.js`,
         "src/routes/index.js",
         "public/data.js",
-        ...(plan.packageJsonContent ? ["package.json"] : [])
-      ]
+        ...(plan.packageJsonContent ? ["package.json"] : []),
+      ],
     });
   })
 );
@@ -257,21 +280,24 @@ router.post(
         : {
             path: `src/routes/${plan.routeFileBase}.routes.js`,
             willDelete: false,
-            diff: compactDiff(diffLines(plan.originalRouteFileContent, plan.newRouteFileContent))
+            diff: compactDiff(diffLines(plan.originalRouteFileContent, plan.newRouteFileContent)),
           },
-      { path: "src/routes/index.js", diff: compactDiff(diffLines(plan.originalIndexContent, plan.finalIndexContent)) },
+      {
+        path: "src/routes/index.js",
+        diff: compactDiff(diffLines(plan.originalIndexContent, plan.finalIndexContent)),
+      },
       { path: "public/data.js", diff: compactDiff(diffLines(plan.originalDataContent, plan.newDataContent)) },
       ...plan.serviceFilesToDelete.map((s) => ({
         path: `src/services/${s.serviceFileName}.service.js`,
         willDelete: true,
         content: null,
-        diff: null
-      }))
+        diff: null,
+      })),
     ];
     return ok(res, {
       warnings: plan.warnings,
       files,
-      summary: { fullPath: plan.fullPath, method: plan.method }
+      summary: { fullPath: plan.fullPath, method: plan.method },
     });
   })
 );
@@ -281,7 +307,12 @@ router.post(
   asyncHandler(async (req, res) => {
     const plan = buildDeletePlan(req.body);
 
-    const touchedPaths = [plan.routeFilePath, ROUTES_INDEX, PUBLIC_DATA, ...plan.serviceFilesToDelete.map((s) => s.servicePath)];
+    const touchedPaths = [
+      plan.routeFilePath,
+      ROUTES_INDEX,
+      PUBLIC_DATA,
+      ...plan.serviceFilesToDelete.map((s) => s.servicePath),
+    ];
 
     const historySnapshot = snapshotFiles(touchedPaths);
 
@@ -298,25 +329,34 @@ router.post(
       historyId = recordHistory({
         action: "delete",
         summary: `Hapus endpoint ${plan.method} ${plan.fullPath}`,
-        snapshot: historySnapshot
+        snapshot: historySnapshot,
       }).id;
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     // Test params health check endpoint ini udah gak relevan.
-    try { deleteHealthTest({ method: plan.method, path: plan.fullPath }); } catch { /* best-effort */ }
+    try {
+      deleteHealthTest({ method: plan.method, path: plan.fullPath });
+    } catch {
+      /* best-effort */
+    }
 
     scheduleRestartAfterResponse(res);
     return ok(res, {
-      message: "Endpoint berhasil dihapus. Server bakal auto-restart sebentar buat nge-drop file lamanya — tunggu beberapa detik sebelum test lagi.",
+      message:
+        "Endpoint berhasil dihapus. Server bakal auto-restart sebentar buat nge-drop file lamanya — tunggu beberapa detik sebelum test lagi.",
       fullPath: plan.fullPath,
       method: plan.method,
       historyId,
       filesChanged: [
-        plan.willDeleteRouteFile ? `src/routes/${plan.routeFileBase}.routes.js (dihapus)` : `src/routes/${plan.routeFileBase}.routes.js`,
+        plan.willDeleteRouteFile
+          ? `src/routes/${plan.routeFileBase}.routes.js (dihapus)`
+          : `src/routes/${plan.routeFileBase}.routes.js`,
         "src/routes/index.js",
         "public/data.js",
-        ...plan.serviceFilesToDelete.map((s) => `src/services/${s.serviceFileName}.service.js (dihapus)`)
-      ]
+        ...plan.serviceFilesToDelete.map((s) => `src/services/${s.serviceFileName}.service.js (dihapus)`),
+      ],
     });
   })
 );
@@ -370,22 +410,27 @@ router.post(
       const resp = await fetch(target.toString(), fetchOpts);
       const text = await resp.text();
       let body;
-      try { body = JSON.parse(text); } catch { body = text.slice(0, 500); }
+      try {
+        body = JSON.parse(text);
+      } catch {
+        body = text.slice(0, 500);
+      }
 
       if (resp.status >= 500) {
         return ok(res, {
           success: false,
           status: resp.status,
           message: "Endpoint berhasil dibuat, tapi ERROR pas dijalankan.",
-          body
+          body,
         });
       }
       return ok(res, { success: true, status: resp.status, body });
     } catch (err) {
       return ok(res, {
         success: false,
-        message: "Belum bisa konek ke server sendiri — biasanya karena masih proses restart (nodemon). Coba lagi beberapa detik lagi.",
-        error: err.message
+        message:
+          "Belum bisa konek ke server sendiri — biasanya karena masih proses restart (nodemon). Coba lagi beberapa detik lagi.",
+        error: err.message,
       });
     }
   })
@@ -429,13 +474,21 @@ router.get(
           suggestedInstanceName = decl ? decl.instanceName : null;
         }
       }
-      endpointCountInSameFile = listAllEndpoints().filter((e) => splitApiPath(e.path).routeSlug === routeSlug).length;
+      endpointCountInSameFile = listAllEndpoints().filter(
+        (e) => splitApiPath(e.path).routeSlug === routeSlug
+      ).length;
     } catch {
       // best-effort doang — biarin null semua kalau ada yang gagal di-parse
     }
 
     return ok(res, {
-      endpoint: { ...detail, routeFileBase, suggestedServiceFileName, suggestedInstanceName, endpointCountInSameFile }
+      endpoint: {
+        ...detail,
+        routeFileBase,
+        suggestedServiceFileName,
+        suggestedInstanceName,
+        endpointCountInSameFile,
+      },
     });
   })
 );
@@ -464,7 +517,7 @@ router.post(
       return {
         name: p.name,
         required: ov && typeof ov.required === "boolean" ? ov.required : p.required,
-        desc: ov && typeof ov.desc === "string" ? ov.desc : p.desc
+        desc: ov && typeof ov.desc === "string" ? ov.desc : p.desc,
       };
     };
 
@@ -474,12 +527,12 @@ router.post(
       path: detail.path,
       desc: endpointDesc ?? detail.desc,
       pathParams: detail.pathParams,
-      query: detail.query.map(mergeParam)
+      query: detail.query.map(mergeParam),
     };
 
     const { content: dataAfterRemove, categoryEmpty } = removeEndpointFromPublicData(dataContent, {
       path: fullPath,
-      method
+      method,
     });
     const knownCategories = listExistingCategories();
     if (!knownCategories.some((c) => c.id === categoryId)) {
@@ -489,15 +542,18 @@ router.post(
 
     const { routeSlug } = splitApiPath(fullPath);
     const indexContent = fs.readFileSync(ROUTES_INDEX, "utf8");
-    const { content: indexAfterRemove } = removeEndpointFromRoutesIndex(indexContent, { path: fullPath, method });
+    const { content: indexAfterRemove } = removeEndpointFromRoutesIndex(indexContent, {
+      path: fullPath,
+      method,
+    });
     const idxParams = [
       ...detail.pathParams.map((p) => `${p.name} (path)`),
-      ...endpointObj.query.map((p) => `${p.name}${p.required ? "" : "?"}`)
+      ...endpointObj.query.map((p) => `${p.name}${p.required ? "" : "?"}`),
     ];
     const newIndexContent = updateRoutesIndex(indexAfterRemove, {
       routeSlug,
       isNewRouteFile: false,
-      endpointEntry: { name: endpointObj.name, method: detail.method, path: fullPath, params: idxParams }
+      endpointEntry: { name: endpointObj.name, method: detail.method, path: fullPath, params: idxParams },
     });
 
     withRollback([PUBLIC_DATA, ROUTES_INDEX], () => {
@@ -507,7 +563,9 @@ router.post(
 
     return ok(res, {
       message: "Metadata endpoint berhasil diupdate.",
-      warnings: categoryEmpty ? ["Kategori asal jadi kosong sebelum entry baru disisipkan — cek public/data.js kalau perlu."] : []
+      warnings: categoryEmpty
+        ? ["Kategori asal jadi kosong sebelum entry baru disisipkan — cek public/data.js kalau perlu."]
+        : [],
     });
   })
 );
@@ -529,7 +587,7 @@ router.post(
     const fileOverrides = {
       [ROUTES_INDEX]: deletePlan.finalIndexContent,
       [PUBLIC_DATA]: deletePlan.newDataContent,
-      [deletePlan.routeFilePath]: deletePlan.willDeleteRouteFile ? null : deletePlan.newRouteFileContent
+      [deletePlan.routeFilePath]: deletePlan.willDeleteRouteFile ? null : deletePlan.newRouteFileContent,
     };
     const addPlan = buildPlan(addBody, { fileOverrides });
 
@@ -538,17 +596,27 @@ router.post(
       routeFiles.push({
         path: `src/routes/${addPlan.routeSlug}.routes.js`,
         isNew: deletePlan.willDeleteRouteFile,
-        diff: deletePlan.willDeleteRouteFile ? null : compactDiff(diffLines(deletePlan.originalRouteFileContent, addPlan.routeFileContent))
+        diff: deletePlan.willDeleteRouteFile
+          ? null
+          : compactDiff(diffLines(deletePlan.originalRouteFileContent, addPlan.routeFileContent)),
       });
     } else {
       routeFiles.push(
         deletePlan.willDeleteRouteFile
           ? { path: `src/routes/${deletePlan.routeFileBase}.routes.js`, willDelete: true, diff: null }
-          : { path: `src/routes/${deletePlan.routeFileBase}.routes.js`, willDelete: false, diff: compactDiff(diffLines(deletePlan.originalRouteFileContent, deletePlan.newRouteFileContent)) },
+          : {
+              path: `src/routes/${deletePlan.routeFileBase}.routes.js`,
+              willDelete: false,
+              diff: compactDiff(
+                diffLines(deletePlan.originalRouteFileContent, deletePlan.newRouteFileContent)
+              ),
+            },
         {
           path: `src/routes/${addPlan.routeSlug}.routes.js`,
           isNew: addPlan.isNewRouteFile,
-          diff: addPlan.isNewRouteFile ? null : compactDiff(diffLines(addPlan.originalRouteFileContent, addPlan.routeFileContent))
+          diff: addPlan.isNewRouteFile
+            ? null
+            : compactDiff(diffLines(addPlan.originalRouteFileContent, addPlan.routeFileContent)),
         }
       );
     }
@@ -557,14 +625,22 @@ router.post(
       {
         path: `src/services/${addPlan.serviceFileName}.service.js`,
         isNew: !addPlan.serviceExists,
-        diff: addPlan.serviceExists ? compactDiff(diffLines(fs.readFileSync(addPlan.servicePath, "utf8"), addPlan.serviceFileContent)) : null
+        diff: addPlan.serviceExists
+          ? compactDiff(diffLines(fs.readFileSync(addPlan.servicePath, "utf8"), addPlan.serviceFileContent))
+          : null,
       },
       ...routeFiles,
-      { path: "src/routes/index.js", diff: compactDiff(diffLines(deletePlan.originalIndexContent, addPlan.indexContent)) },
-      { path: "public/data.js", diff: compactDiff(diffLines(deletePlan.originalDataContent, addPlan.dataContent)) },
+      {
+        path: "src/routes/index.js",
+        diff: compactDiff(diffLines(deletePlan.originalIndexContent, addPlan.indexContent)),
+      },
+      {
+        path: "public/data.js",
+        diff: compactDiff(diffLines(deletePlan.originalDataContent, addPlan.dataContent)),
+      },
       ...deletePlan.serviceFilesToDelete
         .filter((s) => s.serviceFileName !== addPlan.serviceFileName)
-        .map((s) => ({ path: `src/services/${s.serviceFileName}.service.js`, willDelete: true, diff: null }))
+        .map((s) => ({ path: `src/services/${s.serviceFileName}.service.js`, willDelete: true, diff: null })),
     ];
 
     const warnings = [...deletePlan.warnings];
@@ -575,7 +651,12 @@ router.post(
     return ok(res, {
       warnings,
       files,
-      summary: { removedPath: deletePlan.fullPath, removedMethod: deletePlan.method, newPath: addPlan.fullPath, newMethod: addPlan.method }
+      summary: {
+        removedPath: deletePlan.fullPath,
+        removedMethod: deletePlan.method,
+        newPath: addPlan.fullPath,
+        newMethod: addPlan.method,
+      },
     });
   })
 );
@@ -590,7 +671,7 @@ router.post(
     const fileOverrides = {
       [ROUTES_INDEX]: deletePlan.finalIndexContent,
       [PUBLIC_DATA]: deletePlan.newDataContent,
-      [deletePlan.routeFilePath]: deletePlan.willDeleteRouteFile ? null : deletePlan.newRouteFileContent
+      [deletePlan.routeFilePath]: deletePlan.willDeleteRouteFile ? null : deletePlan.newRouteFileContent,
     };
     const addPlan = buildPlan(addBody, { fileOverrides });
 
@@ -602,8 +683,8 @@ router.post(
         PUBLIC_DATA,
         addPlan.servicePath,
         ...deletePlan.serviceFilesToDelete.map((s) => s.servicePath),
-        ...(addPlan.packageJsonContent ? [PKG_PATH] : [])
-      ])
+        ...(addPlan.packageJsonContent ? [PKG_PATH] : []),
+      ]),
     ];
 
     const historySnapshot = snapshotFiles(touchedPaths);
@@ -624,7 +705,8 @@ router.post(
       // dan bakal ditulis di bawah.
 
       for (const s of deletePlan.serviceFilesToDelete) {
-        if (s.servicePath !== addPlan.servicePath && fs.existsSync(s.servicePath)) fs.unlinkSync(s.servicePath);
+        if (s.servicePath !== addPlan.servicePath && fs.existsSync(s.servicePath))
+          fs.unlinkSync(s.servicePath);
       }
 
       fs.writeFileSync(addPlan.servicePath, addPlan.serviceFileContent, "utf8");
@@ -640,16 +722,19 @@ router.post(
       historyId = recordHistory({
         action: "edit",
         summary: `Edit endpoint ${deletePlan.fullPath} → ${addPlan.method} ${addPlan.fullPath}`,
-        snapshot: historySnapshot
+        snapshot: historySnapshot,
       }).id;
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     return ok(res, {
-      message: "Endpoint berhasil diedit. Server bakal auto-restart sebentar buat nge-load ulang — tunggu beberapa detik sebelum test lagi.",
+      message:
+        "Endpoint berhasil diedit. Server bakal auto-restart sebentar buat nge-load ulang — tunggu beberapa detik sebelum test lagi.",
       removedPath: deletePlan.fullPath,
       newPath: addPlan.fullPath,
       method: addPlan.method,
-      historyId
+      historyId,
     });
   })
 );
@@ -665,7 +750,8 @@ router.post(
     if (first.depWarnings.length) {
       warnings.push(`Package belum ke-install: ${first.depWarnings.join(", ")}.`);
     }
-    if (first.serviceExists) warnings.push(`src/services/${first.serviceFileName}.service.js sudah ada dan akan DITIMPA.`);
+    if (first.serviceExists)
+      warnings.push(`src/services/${first.serviceFileName}.service.js sudah ada dan akan DITIMPA.`);
 
     // Diff kumulatif: bandingkan kondisi disk sekarang vs hasil AKHIR batch.
     const files = [
@@ -673,25 +759,41 @@ router.post(
         path: `src/services/${first.serviceFileName}.service.js`,
         isNew: !first.serviceExists,
         content: last.serviceFileContent,
-        diff: first.serviceExists ? compactDiff(diffLines(fs.readFileSync(first.servicePath, "utf8"), last.serviceFileContent)) : null
+        diff: first.serviceExists
+          ? compactDiff(diffLines(fs.readFileSync(first.servicePath, "utf8"), last.serviceFileContent))
+          : null,
       },
       {
         path: `src/routes/${first.routeSlug}.routes.js`,
         isNew: first.isNewRouteFile,
         content: last.routeFileContent,
-        diff: first.isNewRouteFile ? null : compactDiff(diffLines(first.originalRouteFileContent, last.routeFileContent))
+        diff: first.isNewRouteFile
+          ? null
+          : compactDiff(diffLines(first.originalRouteFileContent, last.routeFileContent)),
       },
-      { path: "src/routes/index.js", isNew: false, diff: compactDiff(diffLines(first.originalIndexContent, last.indexContent)) },
-      { path: "public/data.js", isNew: false, diff: compactDiff(diffLines(first.originalDataContent, last.dataContent)) }
+      {
+        path: "src/routes/index.js",
+        isNew: false,
+        diff: compactDiff(diffLines(first.originalIndexContent, last.indexContent)),
+      },
+      {
+        path: "public/data.js",
+        isNew: false,
+        diff: compactDiff(diffLines(first.originalDataContent, last.dataContent)),
+      },
     ];
     if (last.packageJsonContent) {
-      files.push({ path: "package.json", isNew: false, diff: compactDiff(diffLines(fs.readFileSync(PKG_PATH, "utf8"), last.packageJsonContent)) });
+      files.push({
+        path: "package.json",
+        isNew: false,
+        diff: compactDiff(diffLines(fs.readFileSync(PKG_PATH, "utf8"), last.packageJsonContent)),
+      });
     }
 
     return ok(res, {
       warnings,
       files,
-      summary: { endpoints: plans.map((p) => ({ fullPath: p.fullPath, method: p.method })) }
+      summary: { endpoints: plans.map((p) => ({ fullPath: p.fullPath, method: p.method })) },
     });
   })
 );
@@ -708,7 +810,7 @@ router.post(
       first.routeFilePath,
       ROUTES_INDEX,
       PUBLIC_DATA,
-      ...(last.packageJsonContent ? [PKG_PATH] : [])
+      ...(last.packageJsonContent ? [PKG_PATH] : []),
     ];
 
     const historySnapshot = snapshotFiles(touchedPaths);
@@ -727,9 +829,11 @@ router.post(
       historyId = recordHistory({
         action: "add",
         summary: `Batch tambah ${plans.length} endpoint: ${plans.map((p) => p.fullPath).join(", ")}`,
-        snapshot: historySnapshot
+        snapshot: historySnapshot,
       }).id;
-    } catch { /* best-effort */ }
+    } catch {
+      /* best-effort */
+    }
 
     scheduleRestartAfterResponse(res);
     return ok(res, {
@@ -741,8 +845,8 @@ router.post(
         `src/routes/${first.routeSlug}.routes.js`,
         "src/routes/index.js",
         "public/data.js",
-        ...(last.packageJsonContent ? ["package.json"] : [])
-      ]
+        ...(last.packageJsonContent ? ["package.json"] : []),
+      ],
     });
   })
 );

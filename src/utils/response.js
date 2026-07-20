@@ -5,7 +5,7 @@ export function ok(res, result, extra = {}, status = 200) {
   return res.status(status).json({
     status: true,
     ...extra,
-    result
+    result,
   });
 }
 
@@ -23,6 +23,6 @@ export class ApiError extends Error {
 export function fail(res, message, status = 500) {
   return res.status(status).json({
     status: false,
-    error: message
+    error: message,
   });
 }

@@ -35,7 +35,7 @@ export function identifyClient(req, res, next) {
       dailyQuota: Number(entry.dailyQuota) > 0 ? Number(entry.dailyQuota) : null,
       // Asal-usul key hasil auto-provision login docs (google/github),
       // null buat key manual — dibalikin di /api/me.
-      provider: entry.provider || null
+      provider: entry.provider || null,
     };
   } else {
     req.client = { id: null, tier: "free", apiKey: null, dailyQuota: null, provider: null };

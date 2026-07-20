@@ -117,7 +117,7 @@ export function responseCache(req, res, next) {
         storedAt: now,
         expiresAt: now + ttlSeconds * 1000,
         status: res.statusCode,
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
     }
     res.set("X-Cache", "MISS");
