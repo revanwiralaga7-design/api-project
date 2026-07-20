@@ -130,6 +130,49 @@ export function usageSummary(days = 7) {
 }
 
 /**
+ * Deret harian buat grafik batang di panel admin: SEMUA hari di rentang
+ * dibalikin urut (termasuk yang 0 hit) biar sumbu X-nya kontinu — grafik
+ * yang lompat dari Senin ke Kamis nyesatin pembaca.
+ */
+export function dailySeries(days = 7) {
+  const usage = load();
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    let total = 0;
+    let limited = 0;
+    for (const entry of Object.values(usage[day] || {})) {
+      total += entry.total || 0;
+      limited += entry.limited || 0;
+    }
+    out.push({ day, total, limited });
+  }
+  return out;
+}
+
+/**
+ * Endpoint terpopuler milik SATU client selama `days` hari terakhir —
+ * buat kartu API key di docs (self-service): user lihat endpoint mana
+ * yang paling banyak dia panggil tanpa nanya admin.
+ */
+export function topPathsForKey(clientKey, days = 7, limit = 5) {
+  if (!clientKey) return [];
+  const usage = load();
+  const cutoff = new Date(Date.now() - (days - 1) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const byPath = {};
+  for (const [day, clients] of Object.entries(usage)) {
+    if (day < cutoff) continue;
+    for (const [p, n] of Object.entries(clients[clientKey]?.byPath || {})) {
+      byPath[p] = (byPath[p] || 0) + n;
+    }
+  }
+  return Object.entries(byPath)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([p, n]) => ({ path: p, hits: n }));
+}
+
+/**
  * Reset cache in-memory (dipakai test biar tiap test mulai bersih).
  */
 export function _resetUsageCache() {
@@ -141,4 +184,12 @@ export function _resetUsageCache() {
   }
 }
 
-export default { recordHit, getTodayTotal, usageSummary, flushUsage, USAGE_PATH };
+export default {
+  recordHit,
+  getTodayTotal,
+  usageSummary,
+  dailySeries,
+  topPathsForKey,
+  flushUsage,
+  USAGE_PATH,
+};

@@ -96,6 +96,12 @@
       .toolbar .hint {
         margin: 0;
       }
+      /* Wadah grafik batang usage harian (SVG inline dari admin-ops.js).
+     Kosong saat gak ada data — margin cuma muncul kalau ada isinya. */
+      .usage-chart:not(:empty) {
+        margin: 4px 0 14px;
+        max-width: 720px;
+      }
       .conflict-tag {
         color: var(--amber);
         font-size: 11px;
@@ -152,7 +158,9 @@
               <option value="30">30 hari</option>
             </select>
             <button class="btn btn-secondary btn-sm" id="usageReloadBtn">Muat Ulang</button>
+            <button class="btn btn-secondary btn-sm" id="usageCsvBtn">Unduh CSV</button>
           </div>
+          <div id="usageChart" class="usage-chart"></div>
           <div id="usageWrap"><div class="empty-hint">Memuat...</div></div>
           <h3>Endpoint terpopuler</h3>
           <div id="usageTopPaths"></div>
@@ -189,6 +197,18 @@
             <span class="hint" id="logCount"></span>
           </div>
           <div class="log-box" id="logBox">Memuat...</div>
+        </div>
+
+        <div class="panel">
+          <h2>Audit Trail Admin</h2>
+          <p class="panel-desc">
+            Semua aksi mutasi lewat panel admin (ubah tier, cabut key, rollback, rule cache, dst) dicatat
+            otomatis: siapa (admin key ter-mask), aksi apa, kapan, dan status akhirnya.
+          </p>
+          <div class="toolbar">
+            <button class="btn btn-secondary btn-sm" id="auditReloadBtn">Muat Ulang</button>
+          </div>
+          <div id="auditWrap"><div class="empty-hint">Memuat...</div></div>
         </div>
 
         <div class="panel">

@@ -156,16 +156,21 @@ export function deleteClient(apiKey) {
 }
 
 /**
- * Cari key milik akun OAuth tertentu. providerId dibandingkan sebagai
- * string (profile.id Google itu string angka panjang, GitHub number —
- * jangan sampai beda tipe bikin akun yang sama dianggap belum punya key).
+ * Cari key PRIMARY milik akun OAuth tertentu. providerId dibandingkan
+ * sebagai string (profile.id Google itu string angka panjang, GitHub
+ * number — jangan sampai beda tipe bikin akun yang sama dianggap belum
+ * punya key). Sejak ada multi-key: key TANPA label = primary (key
+ * tambahan selalu berlabel, lihat createAdditionalKey) — jangan andalkan
+ * urutan objek, rotate key mindahin entry ke akhir.
  */
 export function findClientByProvider(provider, providerId) {
   if (!provider || providerId === undefined || providerId === null) return null;
-  const hit = Object.entries(loadClients()).find(
+  const mine = Object.entries(loadClients()).filter(
     ([, e]) => e?.provider === provider && String(e?.providerId) === String(providerId)
   );
-  return hit ? { apiKey: hit[0], ...hit[1] } : null;
+  if (!mine.length) return null;
+  const hit = mine.find(([, e]) => !e.label) || mine[0];
+  return { apiKey: hit[0], ...hit[1] };
 }
 
 /**
@@ -181,7 +186,19 @@ export function findClientByProvider(provider, providerId) {
 export function ensureClientForUser(user) {
   if (!user?.provider || user.id === undefined || user.id === null) return null;
   const existing = findClientByProvider(user.provider, user.id);
-  if (existing) return existing;
+  if (existing) {
+    // Backfill email buat entry lama (dari sebelum field email disimpan):
+    // sekali isi pas login berikutnya, biar admin bisa hubungi pemilik key.
+    if (!existing.email && user.email) {
+      const clients = loadClients();
+      if (clients[existing.apiKey]) {
+        clients[existing.apiKey].email = user.email;
+        saveClients(clients);
+        existing.email = user.email;
+      }
+    }
+    return existing;
+  }
 
   const clients = loadClients();
   const apiKey = crypto.randomBytes(24).toString("hex");
@@ -219,6 +236,105 @@ export function promoteClientToAdmin(apiKey) {
   return { apiKey, ...entry };
 }
 
+/**
+ * Ganti API key sebuah client dengan key acak baru — entry (nama, tier,
+ * provider, kuota) pindah utuh, key lama langsung mati. Buat self-service
+ * di docs: user yang key-nya bocor bisa rotate sendiri tanpa nunggu admin.
+ * Riwayat usage key lama sengaja gak dimigrasi (tercatat per key).
+ */
+export function regenerateClientKey(apiKey) {
+  const clients = loadClients();
+  const entry = clients[apiKey];
+  if (!entry) return null;
+  const newKey = crypto.randomBytes(24).toString("hex");
+  delete clients[apiKey];
+  clients[newKey] = entry;
+  saveClients(clients);
+  return { apiKey: newKey, ...entry };
+}
+
+/* ------------------------------------------------------------------ */
+/* Multiple keys per akun OAuth (self-service, label per key)           */
+/* ------------------------------------------------------------------ */
+
+// Batas key per akun — cukup buat "bot-discord, server-prod, dev-laptop"
+// tanpa jadi jalur nyepam entry di clients.json.
+export const MAX_KEYS_PER_USER = 5;
+
+/**
+ * Semua key milik satu akun OAuth, urut pembuatan (key pertama = primary,
+ * itu yang dibalikin findClientByProvider & dipakai playground docs).
+ */
+export function listKeysForUser(provider, providerId) {
+  if (!provider || providerId === undefined || providerId === null) return [];
+  return Object.entries(loadClients())
+    .filter(([, e]) => e?.provider === provider && String(e?.providerId) === String(providerId))
+    .map(([apiKey, e]) => ({
+      apiKey,
+      label: e.label || null,
+      tier: e.tier,
+      createdAt: e.createdAt || null,
+      dailyQuota: Number(e?.dailyQuota) > 0 ? Number(e.dailyQuota) : null,
+      expiresAt: e.expiresAt || null,
+    }));
+}
+
+/**
+ * Bikin key TAMBAHAN berlabel buat akun OAuth (mis. "bot-discord",
+ * "server-prod") — biar rotate/hapus satu key gak mematikan semua bot.
+ * Tier & kuota ngikut key primary (kebijakan per akun, bukan per key).
+ * Wajib udah punya key primary (dari ensureClientForUser pas login).
+ */
+export function createAdditionalKey(user, label) {
+  const cleanLabel = String(label || "").trim();
+  if (!cleanLabel) throw new Error("Label key wajib diisi (mis. 'bot-discord').");
+  if (cleanLabel.length > 40) throw new Error("Label maksimal 40 karakter.");
+
+  const primary = findClientByProvider(user?.provider, user?.id);
+  if (!primary) throw new Error("Akun ini belum punya API key.");
+
+  const existing = listKeysForUser(user.provider, user.id);
+  if (existing.length >= MAX_KEYS_PER_USER)
+    throw new Error(`Maksimal ${MAX_KEYS_PER_USER} key per akun. Hapus salah satu dulu.`);
+  if (existing.some((k) => (k.label || "") === cleanLabel))
+    throw new Error(`Label '${cleanLabel}' sudah dipakai key lain.`);
+
+  const clients = loadClients();
+  const apiKey = crypto.randomBytes(24).toString("hex");
+  const entry = {
+    name: `${primary.name} · ${cleanLabel}`,
+    label: cleanLabel,
+    tier: primary.tier,
+    provider: primary.provider,
+    providerId: String(primary.providerId),
+    email: primary.email || null,
+    dailyQuota: primary.dailyQuota || null,
+    createdAt: new Date().toISOString(),
+  };
+  clients[apiKey] = entry;
+  saveClients(clients);
+  return { apiKey, ...entry };
+}
+
+/**
+ * Hapus salah satu key MILIK SENDIRI. Kepemilikan dicek dari provider +
+ * providerId (bukan cuma "key-nya ada") — user gak bisa hapus key orang
+ * lain walau tahu key-nya. Key terakhir gak boleh dihapus (playground &
+ * kartu API key butuh minimal satu; pakai "ganti key" buat rotate).
+ */
+export function deleteOwnKey(user, apiKey) {
+  const clients = loadClients();
+  const entry = clients[apiKey];
+  if (!entry || entry.provider !== user?.provider || String(entry.providerId) !== String(user?.id)) {
+    throw new Error("Key tidak ditemukan di akun ini.");
+  }
+  if (listKeysForUser(user.provider, user.id).length <= 1) {
+    throw new Error("Key terakhir tidak bisa dihapus — pakai 'ganti key' buat rotate.");
+  }
+  delete clients[apiKey];
+  saveClients(clients);
+}
+
 export default {
   loadClients,
   saveClients,
@@ -229,6 +345,11 @@ export default {
   findClientByProvider,
   ensureClientForUser,
   promoteClientToAdmin,
+  regenerateClientKey,
+  listKeysForUser,
+  createAdditionalKey,
+  deleteOwnKey,
   isExpired,
   VALID_TIERS,
+  MAX_KEYS_PER_USER,
 };

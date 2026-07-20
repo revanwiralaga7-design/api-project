@@ -2,7 +2,18 @@ import { Router } from "express";
 import crypto from "crypto";
 import passport, { googleEnabled, githubEnabled } from "../config/passport.js";
 import { config } from "../config/index.js";
-import { ensureClientForUser, promoteClientToAdmin } from "../utils/clients.js";
+import {
+  ensureClientForUser,
+  promoteClientToAdmin,
+  findClientByProvider,
+  regenerateClientKey,
+  listKeysForUser,
+  createAdditionalKey,
+  deleteOwnKey,
+  MAX_KEYS_PER_USER,
+} from "../utils/clients.js";
+import { getTodayTotal, topPathsForKey } from "../utils/usage.js";
+import { TIER_MAX } from "../middleware/tierRateLimit.js";
 
 const router = Router();
 
@@ -136,7 +147,87 @@ router.get("/me", (req, res) => {
     adminDocs: !!(req.session && req.session.adminDocs),
     apiKey: apiClient ? apiClient.apiKey : null,
     apiTier: apiClient ? apiClient.tier : null,
+    // Info pemakaian buat kartu API key di docs (self-service): pemakaian
+    // hari ini + limit yang berlaku + endpoint terpopuler 7 hari terakhir.
+    // hourlyLimit null = unlimited (admin). expiresAt null = tanpa batas.
+    usage: apiClient
+      ? {
+          today: getTodayTotal(apiClient.apiKey),
+          dailyQuota: apiClient.dailyQuota || null,
+          hourlyLimit: apiClient.tier === "admin" ? null : (TIER_MAX[apiClient.tier] ?? TIER_MAX.free),
+          topPaths: topPathsForKey(apiClient.apiKey, 7),
+          expiresAt: apiClient.expiresAt || null,
+        }
+      : null,
   });
+});
+
+/**
+ * Self-service rotate API key: user login (OAuth) ganti key-nya sendiri
+ * dengan yang baru — key lama langsung mati. Buat kasus "key-ku kesebar
+ * di screenshot/log", tanpa harus nunggu admin. Sengaja dibatasi ke akun
+ * OAuth yang lagi login (session), bukan sembarang key: kalau nerima key
+ * dari body, endpoint ini malah jadi alat mematikan key orang lain.
+ */
+router.post("/regenerate-key", (req, res) => {
+  if (!req.user?.provider || req.user?.id === undefined || req.user?.id === null) {
+    return res.status(401).json({ status: false, error: "Harus login Google/GitHub dulu." });
+  }
+  const existing = findClientByProvider(req.user.provider, req.user.id);
+  if (!existing) {
+    return res.status(404).json({ status: false, error: "Akun ini belum punya API key." });
+  }
+  const rotated = regenerateClientKey(existing.apiKey);
+  res.set("Cache-Control", "no-store");
+  res.json({ status: true, result: { apiKey: rotated.apiKey, tier: rotated.tier } });
+});
+
+/* ------------------------------------------------------------------ */
+/* Multi-key self-service: akun OAuth bisa pegang beberapa key berlabel */
+/* (mis. "bot-discord", "server-prod") — rotate/hapus satu gak matiin   */
+/* yang lain. Semua route di bawah pakai guard session yang sama:       */
+/* identitas dari session OAuth, BUKAN dari body (biar gak bisa ngatur  */
+/* key akun lain). Lihat utils/clients.js buat aturan kepemilikannya.   */
+/* ------------------------------------------------------------------ */
+
+function requireOAuthUser(req, res, next) {
+  if (!req.user?.provider || req.user?.id === undefined || req.user?.id === null) {
+    return res.status(401).json({ status: false, error: "Harus login Google/GitHub dulu." });
+  }
+  next();
+}
+
+router.get("/keys", requireOAuthUser, (req, res) => {
+  res.set("Cache-Control", "no-store");
+  res.json({
+    status: true,
+    result: {
+      keys: listKeysForUser(req.user.provider, req.user.id),
+      max: MAX_KEYS_PER_USER,
+    },
+  });
+});
+
+router.post("/keys", requireOAuthUser, (req, res) => {
+  try {
+    const created = createAdditionalKey(req.user, req.body?.label);
+    res.set("Cache-Control", "no-store");
+    res.json({
+      status: true,
+      result: { apiKey: created.apiKey, label: created.label, tier: created.tier },
+    });
+  } catch (e) {
+    res.status(400).json({ status: false, error: e.message });
+  }
+});
+
+router.delete("/keys/:apiKey", requireOAuthUser, (req, res) => {
+  try {
+    deleteOwnKey(req.user, req.params.apiKey);
+    res.json({ status: true, result: { message: "Key dihapus." } });
+  } catch (e) {
+    res.status(e.message.includes("tidak ditemukan") ? 404 : 400).json({ status: false, error: e.message });
+  }
 });
 
 export default router;

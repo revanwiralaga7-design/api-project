@@ -28,7 +28,32 @@
       "Bash(curl -s \"http://localhost:3998/api/endpoints\")",
       "Bash(PORT=3997 NODE_ENV=test node server.js)",
       "Bash(curl -s -o /tmp/e2e-me.png -w 'me?format=image: %{http_code} %{content_type} %{size_download}b\\\\n' 'http://localhost:3997/api/me?format=image&apikey=__TRACKED_VAR__')",
-      "Bash(curl -s -o /dev/null -w 'me \\(json biasa\\): %{http_code} %{content_type}\\\\n' http://localhost:3997/api/me?apikey=__TRACKED_VAR__)"
+      "Bash(curl -s -o /dev/null -w 'me \\(json biasa\\): %{http_code} %{content_type}\\\\n' http://localhost:3997/api/me?apikey=__TRACKED_VAR__)",
+      "Read(//home/Justicee/**)",
+      "Read(//home/tanaka/src/work/**)",
+      "Bash(npx prettier *)",
+      "Bash(npx eslint *)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "mcp__plugin_context7_context7__query-docs",
+      "Bash(grep -v \"ms$\")",
+      "Bash(PORT=3555 NODE_ENV=test timeout 12 node -e ' *)",
+      "Bash(PORT=3556 NODE_ENV=development ADMIN_API_KEY=test-admin-key-123 node *)",
+      "Bash(curl -s http://127.0.0.1:3556/health)",
+      "Bash(curl -s -H \"x-admin-key: test-admin-key-123\" http://127.0.0.1:3556/api/admin/audit)",
+      "Bash(curl -s -H \"x-admin-key: test-admin-key-123\" -X POST http://127.0.0.1:3556/api/admin/cache -H \"Content-Type: application/json\" -d '{\"path\":\"/api/anime/search\",\"ttlSeconds\":60}')",
+      "Bash(curl -s -H \"x-admin-key: test-admin-key-123\" \"http://127.0.0.1:3556/api/admin/usage.csv?days=7\")",
+      "Bash(curl -s http://127.0.0.1:3556/openapi.json)",
+      "Bash(curl -s -X POST http://127.0.0.1:3556/api/admin/cache -H \"x-admin-key: test-admin-key-123\" -H \"Content-Type: application/json\" -d '{\"path\":\"/api/anime/search\",\"ttlSeconds\":0}')",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "Bash(curl -s -X DELETE \"http://127.0.0.1:3556/auth/keys/keymilikoranglain123\")",
+      "Bash(curl -s \"http://127.0.0.1:3556/auth/keys\")",
+      "Bash(git check-ignore *)",
+      "Bash(echo \"ignore-check: $?\")",
+      "Bash(git config *)",
+      "Bash(printf 'https://revanwiralaga7-design:REDACTED@github.com\\\\n')",
+      "Bash(chmod 600 ~/.git-credentials)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Header kuota harian \\(X-Daily-Quota-*\\) + Retry-After pas 429 *)"
     ]
   }
 }

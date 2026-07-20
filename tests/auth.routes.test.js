@@ -131,10 +131,51 @@ describe("/auth/* (integration, Google & GitHub sengaja dikosongin)", () => {
     const res = await fetch(`${baseUrl}/auth/me`);
     assert.equal(res.status, 200);
     const body = await res.json();
-    assert.deepEqual(body, { status: true, user: null, adminDocs: false, apiKey: null, apiTier: null });
+    assert.deepEqual(body, {
+      status: true,
+      user: null,
+      adminDocs: false,
+      apiKey: null,
+      apiTier: null,
+      usage: null,
+    });
     // Guard req.user?.provider harus mencegah provisioning buat anonim —
     // keberadaan file gak boleh berubah gara-gara request ini.
     assert.equal(fs.existsSync(new URL("../src/config/clients.json", import.meta.url)), clientsExistedBefore);
+  });
+
+  test("POST /auth/regenerate-key tanpa login -> 401, clients.json TIDAK ketulis", async () => {
+    const clientsExistedBefore = fs.existsSync(new URL("../src/config/clients.json", import.meta.url));
+    const res = await fetch(`${baseUrl}/auth/regenerate-key`, { method: "POST" });
+    assert.equal(res.status, 401);
+    const body = await res.json();
+    assert.equal(body.status, false);
+    assert.ok(body.error, "harus ada pesan error");
+    // Guard req.user?.provider harus nolak anonim SEBELUM nyentuh clients —
+    // gak boleh ada key siapa pun yang ke-rotate/ketulis gara-gara ini.
+    assert.equal(fs.existsSync(new URL("../src/config/clients.json", import.meta.url)), clientsExistedBefore);
+  });
+
+  test("GET/POST /auth/keys & DELETE /auth/keys/:key tanpa login -> 401 semua", async () => {
+    for (const [method, path] of [
+      ["GET", "/auth/keys"],
+      ["POST", "/auth/keys"],
+      ["DELETE", "/auth/keys/abc123"],
+    ]) {
+      const res = await fetch(`${baseUrl}${path}`, { method });
+      assert.equal(res.status, 401, `${method} ${path} harus 401 buat anonim`);
+      const body = await res.json();
+      assert.equal(body.status, false);
+    }
+  });
+
+  test("GET /openapi.json publik -> spec OpenAPI 3 valid tanpa auth", async () => {
+    const res = await fetch(`${baseUrl}/openapi.json`);
+    assert.equal(res.status, 200);
+    const spec = await res.json();
+    assert.match(spec.openapi || "", /^3\./, "harus OpenAPI 3.x");
+    assert.ok(spec.paths && Object.keys(spec.paths).length > 0, "paths gak boleh kosong");
+    assert.ok(spec.info?.title, "harus ada info.title");
   });
 
   test("GET /auth/logout tanpa sesi aktif -> tetap redirect ke /features.html (gak error)", async () => {

@@ -25,6 +25,7 @@ import { dailyQuota } from "./middleware/dailyQuota.js";
 import { responseCache } from "./middleware/responseCache.js";
 import { jsonImage } from "./middleware/jsonImage.js";
 import { ACCESS_LOG_PATH } from "./utils/accessLog.js";
+import { buildOpenApiSpec } from "./utils/health.js";
 import { logger } from "./utils/logger.js";
 import fs from "fs";
 
@@ -118,6 +119,22 @@ app.use("/auth", authRoutes);
 // Docs — Docs (index.html) sekarang butuh login, lihat requireDocsAuth di
 // bawah.
 app.get("/", (req, res) => res.redirect("/features.html"));
+
+// Spec OpenAPI publik (dulu cuma via /api/admin/openapi.json di belakang
+// admin key) — di-generate on-the-fly dari registry endpoint yang sama
+// dengan docs. Publik gak apa-apa: isinya cuma daftar endpoint & param
+// yang emang udah tampil di docs, gak ada secret. Bisa langsung di-import
+// ke Postman/Insomnia/Swagger UI dari URL.
+app.get("/openapi.json", (req, res, next) => {
+  try {
+    const proto = req.get("x-forwarded-proto") || req.protocol;
+    const spec = buildOpenApiSpec({ baseUrl: `${proto}://${req.get("host")}` });
+    res.set("Cache-Control", "public, max-age=300");
+    res.json(spec);
+  } catch (e) {
+    next(e);
+  }
+});
 
 // WAJIB didaftarkan SEBELUM express.static: kalau static duluan, dia bakal
 // langsung nyajiin index.html apa adanya tanpa sempet dicek auth-nya dulu.

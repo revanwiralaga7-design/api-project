@@ -14,7 +14,7 @@ import {
   rollbackHistory,
   deleteHistoryEntry,
 } from "../../utils/history.js";
-import { usageSummary, flushUsage } from "../../utils/usage.js";
+import { usageSummary, dailySeries, flushUsage } from "../../utils/usage.js";
 import {
   loadCacheConfig,
   saveCacheConfig,
@@ -22,6 +22,7 @@ import {
   cacheStats,
 } from "../../middleware/responseCache.js";
 import { tailAccessLog, rotateIfNeeded } from "../../utils/accessLog.js";
+import { tailAuditLog } from "../../utils/auditLog.js";
 import {
   loadHealthTests,
   setHealthTest,
@@ -125,7 +126,50 @@ router.get(
       }))
       .sort((a, b) => b.total - a.total);
 
-    return ok(res, { days: summary.days, clients: rows, topPaths: summary.topPaths.slice(0, 15) });
+    return ok(res, {
+      days: summary.days,
+      daily: dailySeries(days),
+      clients: rows,
+      topPaths: summary.topPaths.slice(0, 15),
+    });
+  })
+);
+
+/**
+ * Ekspor CSV agregat usage (baris = client, kolom sama kayak tabel di
+ * panel) — buat laporan/spreadsheet tanpa nyalin manual dari tabel.
+ */
+router.get(
+  "/usage.csv",
+  asyncHandler(async (req, res) => {
+    const days = Math.min(Math.max(Number(req.query.days) || 7, 1), 30);
+    flushUsage();
+    const summary = usageSummary(days);
+    const byKey = new Map(listClients().map((c) => [c.apiKey, c]));
+
+    // Escape CSV standar: bungkus quote kalau ada koma/quote/newline.
+    const cell = (v) => {
+      const s = String(v ?? "");
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const lines = [["client_key", "name", "tier", "total", "today", "limited", "top_path"].join(",")];
+    for (const [clientKey, u] of Object.entries(summary.byClient)) {
+      const top = Object.entries(u.byPath).sort((a, b) => b[1] - a[1])[0];
+      lines.push(
+        [
+          cell(clientKey),
+          cell(byKey.get(clientKey)?.name || ""),
+          cell(u.tier),
+          u.total,
+          u.today,
+          u.limited,
+          cell(top ? `${top[0]} (${top[1]})` : ""),
+        ].join(",")
+      );
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="usage-${days}d.csv"`);
+    return res.send(lines.join("\n") + "\n");
   })
 );
 
@@ -182,6 +226,17 @@ router.get(
     rotateIfNeeded();
     const { lines, filter } = req.query || {};
     return ok(res, tailAccessLog({ lines, filter }));
+  })
+);
+
+/**
+ * Audit trail aksi admin (siapa ngubah apa kapan) — entry-nya dicatat
+ * otomatis oleh middleware di admin.routes.js buat semua POST/PATCH/DELETE.
+ */
+router.get(
+  "/audit",
+  asyncHandler(async (req, res) => {
+    return ok(res, tailAuditLog({ lines: req.query.lines }));
   })
 );
 

@@ -183,6 +183,99 @@
     actions.appendChild(sendBtn);
     tester.appendChild(actions);
 
+    // ---------- Contoh kode siap salin (curl / fetch / axios) ----------
+    // Digenerate ULANG tiap tab dibuka/di-klik salin dari nilai field saat
+    // itu — jadi snippet-nya selalu ngikutin apa yang lagi diketik user,
+    // lengkap dengan base URL + API key akun ini (kalau login).
+    const snippet = document.createElement("div");
+    snippet.className = "code-snippet";
+    snippet.innerHTML = `
+      <div class="tester-title" style="margin-top:14px;"><span>CONTOH KODE</span>
+        <div class="method-toggle">
+          <button type="button" data-lang="curl" class="active">curl</button>
+          <button type="button" data-lang="fetch">fetch</button>
+          <button type="button" data-lang="axios">axios</button>
+        </div>
+      </div>
+      <pre class="result-body" style="display:block;margin-top:8px;"></pre>
+      <div class="tester-actions" style="margin-top:8px;">
+        <button type="button" class="btn-copy" data-act="copy-snippet">Salin kode</button>
+      </div>
+    `;
+    let snippetLang = "curl";
+    const snippetPre = snippet.querySelector("pre");
+
+    // Kumpulin nilai field saat ini (tanpa validasi wajib — snippet boleh
+    // pakai placeholder buat field kosong biar tetap kebentuk contoh utuh).
+    function collectForSnippet() {
+      const queryObj = {};
+      let path = ep.path;
+      const headers = {};
+      Object.entries(inputs).forEach(([name, meta]) => {
+        const val = meta.el.value.trim() || `<${name}>`;
+        if (meta.kind === "path")
+          path = path.replace(`:${name}`, encodeURIComponent(meta.el.value.trim()) || `{${name}}`);
+        else if (meta.kind === "header") headers[name] = val;
+        else queryObj[name] = val;
+      });
+      if (window.JUSTICE_API_KEY && !headers["x-api-key"]) headers["x-api-key"] = window.JUSTICE_API_KEY;
+      else if (!headers["x-api-key"]) headers["x-api-key"] = "<api-key-kamu>";
+      return { url: getBaseUrl() + path, queryObj, headers };
+    }
+
+    function buildSnippet() {
+      const { url, queryObj, headers } = collectForSnippet();
+      const isGet = currentMethod === "GET";
+      const qs = new URLSearchParams(queryObj).toString();
+      const fullUrl = isGet && qs ? `${url}?${qs}` : url;
+
+      if (snippetLang === "curl") {
+        return buildCurl(fullUrl, currentMethod, queryObj, headers);
+      }
+      if (snippetLang === "fetch") {
+        const opts = [
+          `method: "${currentMethod}"`,
+          `headers: ${JSON.stringify(isGet ? headers : { ...headers, "Content-Type": "application/json" }, null, 2).replace(/\n/g, "\n  ")}`,
+        ];
+        if (!isGet) opts.push(`body: JSON.stringify(${JSON.stringify(queryObj)})`);
+        return `const res = await fetch("${fullUrl}", {\n  ${opts.join(",\n  ")}\n});\nconst data = await res.json();\nconsole.log(data);`;
+      }
+      // axios
+      if (isGet) {
+        return `const { data } = await axios.get("${url}", {\n  params: ${JSON.stringify(queryObj)},\n  headers: ${JSON.stringify(headers)}\n});\nconsole.log(data);`;
+      }
+      return `const { data } = await axios.post("${url}", ${JSON.stringify(queryObj)}, {\n  headers: ${JSON.stringify(headers)}\n});\nconsole.log(data);`;
+    }
+
+    function refreshSnippet() {
+      snippetPre.textContent = buildSnippet();
+    }
+    snippet.querySelectorAll("[data-lang]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        snippetLang = btn.dataset.lang;
+        snippet.querySelectorAll("[data-lang]").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        refreshSnippet();
+      });
+    });
+    snippet.querySelector('[data-act="copy-snippet"]').addEventListener("click", (e) => {
+      refreshSnippet();
+      copyText(snippetPre.textContent);
+      e.target.textContent = "tersalin ✓";
+      setTimeout(() => {
+        e.target.textContent = "Salin kode";
+      }, 1500);
+    });
+    // Refresh pas field diketik — murah (string building doang), gak fetch.
+    Object.values(inputs).forEach((meta) => meta.el.addEventListener("input", refreshSnippet));
+    // Ikut refresh pas method GET/POST di-toggle (listener kedua di tombol
+    // yang sama — yang pertama udah ngubah currentMethod duluan).
+    tester
+      .querySelectorAll(".method-toggle [data-m]")
+      .forEach((btn) => btn.addEventListener("click", refreshSnippet));
+    refreshSnippet();
+    tester.appendChild(snippet);
+
     const result = document.createElement("div");
     result.className = "result";
     result.innerHTML = `

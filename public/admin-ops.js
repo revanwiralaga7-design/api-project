@@ -276,6 +276,58 @@
   }
 
   /* ---------------- Usage analytics ---------------- */
+
+  /**
+   * Grafik batang harian (inline SVG, tanpa library): satu seri "total hit
+   * per hari". Semua hari di rentang dirender (server udah ngisi hari kosong
+   * dengan 0) biar sumbu waktunya kontinu. Angka cuma ditulis di batang
+   * tertinggi + hari ini (label selektif); sisanya lewat <title> (tooltip).
+   */
+  function renderUsageChart(daily) {
+    const el = $("usageChart");
+    if (!el) return;
+    if (!daily || !daily.length || daily.every((d) => !d.total)) {
+      el.innerHTML = "";
+      return;
+    }
+    const W = 640;
+    const H = 140;
+    const padB = 18; // ruang label tanggal
+    const padT = 14; // ruang label angka di atas batang
+    const max = Math.max(...daily.map((d) => d.total));
+    const bw = W / daily.length;
+    const maxIdx = daily.findIndex((d) => d.total === max);
+    const bars = daily
+      .map((d, i) => {
+        const h = Math.round(((H - padB - padT) * d.total) / max);
+        const x = Math.round(i * bw) + 1;
+        const y = H - padB - h;
+        const w = Math.max(Math.round(bw) - 2, 2); // 2px celah antar batang
+        const dd = d.day.slice(5); // MM-DD
+        const isToday = i === daily.length - 1;
+        // Batang: ujung atas rounded 4px, bawah nempel baseline (path manual —
+        // rect rx membulatkan keempat sudut).
+        const r = Math.min(4, w / 2, h);
+        const bar =
+          d.total === 0
+            ? ""
+            : `<path d="M${x} ${H - padB} v${-(h - r)} q0 ${-r} ${r} ${-r} h${w - 2 * r} q${r} 0 ${r} ${r} v${h - r} z" fill="var(--amber)" fill-opacity="${isToday ? 1 : 0.55}"><title>${dd}: ${d.total} hit${d.limited ? ` (${d.limited} kena limit)` : ""}</title></path>`;
+        const numLabel =
+          i === maxIdx || (isToday && d.total > 0)
+            ? `<text x="${x + w / 2}" y="${y - 4}" text-anchor="middle" font-size="10" fill="var(--text)" font-family="var(--mono)">${d.total}</text>`
+            : "";
+        // Label tanggal: maksimal ~8 biar gak tabrakan di rentang 30 hari.
+        const step = Math.ceil(daily.length / 8);
+        const dateLabel =
+          i % step === 0 || isToday
+            ? `<text x="${x + w / 2}" y="${H - 5}" text-anchor="middle" font-size="9" fill="var(--muted-2)" font-family="var(--mono)">${dd}</text>`
+            : "";
+        return bar + numLabel + dateLabel;
+      })
+      .join("");
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Grafik hit per hari" style="width:100%;height:auto;display:block;"><line x1="0" y1="${H - padB}" x2="${W}" y2="${H - padB}" stroke="var(--line-soft)" stroke-width="1"/>${bars}</svg>`;
+  }
+
   async function loadUsage() {
     const days = $("usageDays").value;
     try {
@@ -285,7 +337,8 @@
         $("usageWrap").innerHTML = renderMessages([json.error || "Gagal memuat usage"], "err");
         return;
       }
-      const { clients, topPaths } = json.result;
+      const { daily, clients, topPaths } = json.result;
+      renderUsageChart(daily);
       if (!clients.length) {
         $("usageWrap").innerHTML =
           `<div class="empty-hint">Belum ada pemakaian tercatat di rentang ini.</div>`;
@@ -316,6 +369,23 @@
   }
   $("usageReloadBtn").addEventListener("click", loadUsage);
   $("usageDays").addEventListener("change", loadUsage);
+  // Unduh CSV: adminFetch (bukan <a href>) karena butuh header x-admin-key,
+  // hasilnya di-blob-in terus dipicu unduh manual.
+  $("usageCsvBtn").addEventListener("click", async () => {
+    const days = $("usageDays").value;
+    try {
+      const res = await adminFetch(`/api/admin/usage.csv?days=${encodeURIComponent(days)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `usage-${days}d.csv`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch (e) {
+      $("usageWrap").innerHTML = renderMessages(["Gagal unduh CSV: " + e.message], "err");
+    }
+  });
 
   /* ---------------- Cache ---------------- */
   async function loadCache() {
@@ -420,6 +490,44 @@
     if (e.key === "Enter") loadLogs();
   });
 
+  /* ---------------- Audit trail ---------------- */
+  async function loadAudit() {
+    try {
+      const res = await adminFetch("/api/admin/audit?lines=100");
+      const json = await res.json();
+      if (!json.status) {
+        $("auditWrap").innerHTML = renderMessages([json.error || "Gagal memuat audit"], "err");
+        return;
+      }
+      const { entries } = json.result;
+      if (!entries.length) {
+        $("auditWrap").innerHTML = `<div class="empty-hint">Belum ada aksi admin tercatat.</div>`;
+        return;
+      }
+      const rows = entries
+        .map(
+          (e) => `
+        <tr>
+          <td style="white-space:nowrap;">${escapeHtml(
+            String(e.at || "")
+              .replace("T", " ")
+              .slice(0, 19)
+          )}</td>
+          <td><code>${escapeHtml(e.actor || "?")}</code></td>
+          <td><code>${escapeHtml(e.action || "")}</code></td>
+          <td>${e.detail ? escapeHtml(JSON.stringify(e.detail)) : "—"}</td>
+          <td>${e.status >= 400 ? `<span style="color:var(--red)">${e.status}</span>` : (e.status ?? "—")}</td>
+        </tr>`
+        )
+        .join("");
+      $("auditWrap").innerHTML =
+        `<div class="table-scroll"><table class="dtable"><thead><tr><th>Waktu (UTC)</th><th>Admin</th><th>Aksi</th><th>Detail</th><th>Status</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    } catch (e) {
+      $("auditWrap").innerHTML = renderMessages(["Request gagal: " + e.message], "err");
+    }
+  }
+  $("auditReloadBtn").addEventListener("click", loadAudit);
+
   /* ---------------- OpenAPI ---------------- */
   $("openapiBtn").addEventListener("click", async () => {
     try {
@@ -515,4 +623,5 @@
   loadUsage();
   loadCache();
   loadLogs();
+  loadAudit();
 })();

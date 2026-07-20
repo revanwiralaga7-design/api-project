@@ -925,6 +925,36 @@
             <code class="apikey-value" id="apiKeyValue"></code>
             <button type="button" class="btn-copy" id="apiKeyToggle">tampilkan</button>
             <button type="button" class="btn-copy" id="apiKeyCopy">salin</button>
+            <button type="button" class="btn-copy" id="apiKeyRegen" style="display: none">ganti key</button>
+          </div>
+          <div class="apikey-hint" id="apiKeyUsage" style="display: none"></div>
+          <div class="apikey-hint" id="apiKeyExpiry" style="display: none"></div>
+          <div class="apikey-hint" id="apiKeyTopPaths" style="display: none"></div>
+          <!-- Multi-key: daftar key tambahan berlabel + form bikin baru.
+               Diisi skrip /auth/keys di bawah, cuma buat akun OAuth. -->
+          <div id="extraKeys" style="display: none; margin-top: 10px">
+            <div id="extraKeysList"></div>
+            <div class="apikey-row" style="margin-top: 6px">
+              <input
+                type="text"
+                id="extraKeyLabel"
+                placeholder="label key baru, mis. bot-discord"
+                maxlength="40"
+                style="
+                  flex: 1;
+                  min-width: 0;
+                  font-family: var(--mono);
+                  font-size: 12px;
+                  background: var(--bg-2);
+                  border: 1px solid var(--line);
+                  border-radius: 4px;
+                  padding: 7px 10px;
+                  color: var(--text);
+                "
+              />
+              <button type="button" class="btn-copy" id="extraKeyAdd">+ key baru</button>
+            </div>
+            <div class="apikey-hint" id="extraKeyMsg" style="display: none"></div>
           </div>
           <div class="apikey-hint">
             Playground di bawah otomatis pakai key ini — buat dipakai di luar docs, kirim sebagai header
@@ -981,21 +1011,85 @@
             const tierEl = document.getElementById("apiKeyTier");
             const toggleBtn = document.getElementById("apiKeyToggle");
             const copyBtn = document.getElementById("apiKeyCopy");
-            const masked = d.apiKey.slice(0, 6) + "…" + d.apiKey.slice(-4);
+            const regenBtn = document.getElementById("apiKeyRegen");
+            const usageEl = document.getElementById("apiKeyUsage");
+            // key bisa berubah (tombol "ganti key") — semua handler baca
+            // variabel ini, bukan d.apiKey langsung.
+            let key = d.apiKey;
             let shown = false;
+            const maskOf = (k) => k.slice(0, 6) + "…" + k.slice(-4);
 
-            valueEl.textContent = masked;
+            valueEl.textContent = maskOf(key);
             if (d.apiTier) tierEl.textContent = d.apiTier;
             else tierEl.style.display = "none";
 
+            // Baris pemakaian: "hari ini X request · limit Y/jam" — dari
+            // field usage /auth/me (self-service, gak perlu tanya admin).
+            // Fungsi (bukan sekali jalan) karena dipanggil ulang setelah
+            // "ganti key": usage tercatat per key, jadi key baru mulai 0.
+            // Warna berubah kuning >=80% kuota harian, merah pas habis.
+            const renderUsage = (u) => {
+              if (!u) return;
+              const parts = [`hari ini ${u.today} request`];
+              parts.push(u.hourlyLimit === null ? "limit: unlimited" : `limit ${u.hourlyLimit}/jam`);
+              usageEl.style.color = "";
+              if (u.dailyQuota) {
+                parts.push(`kuota ${u.today}/${u.dailyQuota} per hari`);
+                const ratio = u.today / u.dailyQuota;
+                if (ratio >= 1) {
+                  parts.push("⛔ kuota habis — reset 00:00 UTC");
+                  usageEl.style.color = "var(--red)";
+                } else if (ratio >= 0.8) {
+                  parts.push(`⚠ sisa ${u.dailyQuota - u.today}`);
+                  usageEl.style.color = "var(--amber)";
+                }
+              }
+              usageEl.textContent = parts.join(" · ");
+              usageEl.style.display = "block";
+
+              // Masa berlaku key: tampil kalau ada expiresAt; peringatan
+              // kuning kalau <7 hari lagi, merah kalau sudah lewat.
+              const expEl = document.getElementById("apiKeyExpiry");
+              if (u.expiresAt) {
+                const raw = String(u.expiresAt);
+                const iso = /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw + "T23:59:59.999Z" : raw;
+                const msLeft = Date.parse(iso) - Date.now();
+                const daysLeft = Math.ceil(msLeft / (24 * 60 * 60 * 1000));
+                if (msLeft < 0) {
+                  expEl.textContent = `⛔ key kadaluarsa sejak ${raw.slice(0, 10)} — hubungi admin.`;
+                  expEl.style.color = "var(--red)";
+                } else if (daysLeft <= 7) {
+                  expEl.textContent = `⚠ key kadaluarsa ${raw.slice(0, 10)} (${daysLeft} hari lagi) — hubungi admin buat perpanjang.`;
+                  expEl.style.color = "var(--amber)";
+                } else {
+                  expEl.textContent = `berlaku sampai ${raw.slice(0, 10)}`;
+                  expEl.style.color = "";
+                }
+                expEl.style.display = "block";
+              } else {
+                expEl.style.display = "none";
+              }
+
+              // Endpoint terpopuler milik akun ini (7 hari terakhir).
+              const topEl = document.getElementById("apiKeyTopPaths");
+              if (u.topPaths && u.topPaths.length) {
+                topEl.textContent =
+                  "sering kamu panggil: " + u.topPaths.map((t) => `${t.path} (${t.hits}×)`).join(" · ");
+                topEl.style.display = "block";
+              } else {
+                topEl.style.display = "none";
+              }
+            };
+            renderUsage(d.usage);
+
             toggleBtn.addEventListener("click", () => {
               shown = !shown;
-              valueEl.textContent = shown ? d.apiKey : masked;
+              valueEl.textContent = shown ? key : maskOf(key);
               toggleBtn.textContent = shown ? "sembunyikan" : "tampilkan";
             });
             copyBtn.addEventListener("click", () => {
               navigator.clipboard
-                ?.writeText(d.apiKey)
+                ?.writeText(key)
                 .then(() => {
                   copyBtn.textContent = "tersalin ✓";
                   setTimeout(() => {
@@ -1004,6 +1098,141 @@
                 })
                 .catch(() => {});
             });
+
+            // "Ganti key" cuma buat akun OAuth (endpointnya nolak session
+            // admin-key murni — gak ada akun buat di-rotate).
+            if (d.user) {
+              regenBtn.style.display = "";
+              regenBtn.addEventListener("click", async () => {
+                if (
+                  !confirm(
+                    "Ganti API key? Key lama langsung mati — bot/script yang masih pakai key lama bakal ditolak."
+                  )
+                )
+                  return;
+                regenBtn.disabled = true;
+                try {
+                  const r = await fetch("/auth/regenerate-key", { method: "POST" });
+                  const j = await r.json();
+                  if (j.status && j.result?.apiKey) {
+                    key = j.result.apiKey;
+                    window.JUSTICE_API_KEY = key;
+                    valueEl.textContent = shown ? key : maskOf(key);
+                    // Refresh baris pemakaian: hitungan "hari ini" nempel ke
+                    // key, jadi key baru mulai lagi dari 0.
+                    fetch("/auth/me")
+                      .then((r) => r.json())
+                      .then((me) => renderUsage(me.usage))
+                      .catch(() => {});
+                    regenBtn.textContent = "key baru ✓";
+                    setTimeout(() => {
+                      regenBtn.textContent = "ganti key";
+                    }, 2000);
+                  } else {
+                    alert(j.error || "Gagal mengganti key.");
+                  }
+                } catch {
+                  alert("Request gagal — coba lagi.");
+                } finally {
+                  regenBtn.disabled = false;
+                }
+              });
+            }
+
+            // ---------- Multi-key: daftar key berlabel + bikin/hapus ----------
+            // Cuma akun OAuth (endpoint /auth/keys nolak session admin-key).
+            if (d.user) {
+              const wrapEl = document.getElementById("extraKeys");
+              const listEl = document.getElementById("extraKeysList");
+              const labelEl = document.getElementById("extraKeyLabel");
+              const addBtn = document.getElementById("extraKeyAdd");
+              const msgEl = document.getElementById("extraKeyMsg");
+              const esc = (s) =>
+                String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+              const showMsg = (text, isErr) => {
+                msgEl.textContent = text;
+                msgEl.style.color = isErr ? "var(--red)" : "var(--green)";
+                msgEl.style.display = "block";
+                setTimeout(() => {
+                  msgEl.style.display = "none";
+                }, 4000);
+              };
+
+              async function loadKeys() {
+                try {
+                  const r = await fetch("/auth/keys");
+                  const j = await r.json();
+                  if (!j.status) return;
+                  wrapEl.style.display = "block";
+                  const extras = j.result.keys.filter((k) => k.label);
+                  addBtn.disabled = j.result.keys.length >= j.result.max;
+                  listEl.innerHTML = extras
+                    .map(
+                      (k) => `
+                    <div class="apikey-row" style="margin-top:6px;">
+                      <span class="apikey-tier">${esc(k.label)}</span>
+                      <code class="apikey-value">${esc(k.apiKey.slice(0, 6))}…${esc(k.apiKey.slice(-4))}</code>
+                      <button type="button" class="btn-copy" data-copy="${esc(k.apiKey)}">salin</button>
+                      <button type="button" class="btn-copy" data-del="${esc(k.apiKey)}">hapus</button>
+                    </div>`
+                    )
+                    .join("");
+                  listEl.querySelectorAll("[data-copy]").forEach((b) =>
+                    b.addEventListener("click", () => {
+                      navigator.clipboard?.writeText(b.dataset.copy).then(() => {
+                        b.textContent = "tersalin ✓";
+                        setTimeout(() => {
+                          b.textContent = "salin";
+                        }, 1500);
+                      });
+                    })
+                  );
+                  listEl.querySelectorAll("[data-del]").forEach((b) =>
+                    b.addEventListener("click", async () => {
+                      if (!confirm("Hapus key ini? Bot/script yang pakai key ini langsung ditolak.")) return;
+                      const r2 = await fetch(`/auth/keys/${encodeURIComponent(b.dataset.del)}`, {
+                        method: "DELETE",
+                      });
+                      const j2 = await r2.json();
+                      if (j2.status) loadKeys();
+                      else showMsg(j2.error || "Gagal menghapus key.", true);
+                    })
+                  );
+                } catch {
+                  /* diemin — kartu utama tetap jalan */
+                }
+              }
+
+              addBtn.addEventListener("click", async () => {
+                const label = labelEl.value.trim();
+                if (!label) {
+                  showMsg("Isi label dulu (mis. bot-discord).", true);
+                  return;
+                }
+                addBtn.disabled = true;
+                try {
+                  const r = await fetch("/auth/keys", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ label }),
+                  });
+                  const j = await r.json();
+                  if (j.status) {
+                    labelEl.value = "";
+                    showMsg(`Key '${j.result.label}' dibuat — salin dari daftar di atas.`);
+                    loadKeys();
+                  } else {
+                    showMsg(j.error || "Gagal membuat key.", true);
+                  }
+                } catch {
+                  showMsg("Request gagal — coba lagi.", true);
+                } finally {
+                  addBtn.disabled = false;
+                }
+              });
+
+              loadKeys();
+            }
             card.classList.add("show");
           }
         })
