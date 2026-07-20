@@ -25,10 +25,12 @@
 ### Task 1: Util `dailySeriesForKey` di usage.js
 
 **Files:**
+
 - Modify: `src/utils/usage.js` (tambah fungsi setelah `topPathsForKey`, sekitar baris 176; tambahkan juga ke default export di bawah)
 - Test: `tests/usageSeries.test.js` (baru)
 
 **Interfaces:**
+
 - Consumes: `load()`, pola internal `usage[day][clientKey] = { total, limited, byPath }` yang sudah ada.
 - Produces: `dailySeriesForKey(clientKey, days = 14)` → `Array<{ day: "YYYY-MM-DD", total: number, limited: number }>` — SEMUA hari di rentang, urut naik, hari kosong 0. Task 2 memanggil ini.
 
@@ -154,10 +156,12 @@ git commit -m "Tambah dailySeriesForKey: deret harian per key buat grafik usage 
 ### Task 2: Endpoint `GET /auth/usage-series`
 
 **Files:**
+
 - Modify: `src/routes/auth.routes.js` (import baris 15, helper + route baru setelah blok `/keys`, sekitar baris 231)
 - Test: `tests/usageSeries.test.js` (tambah describe baru), `tests/auth.routes.test.js` (tambah 1 assertion 401)
 
 **Interfaces:**
+
 - Consumes: `dailySeriesForKey` (Task 1), `listKeysForUser`, `getTodayTotal`, `topPathsForKey`, `TIER_MAX`, guard `requireOAuthUser` — semua sudah diimport/ada di file ini.
 - Produces:
   - `buildUsageSeriesPayload(user, query)` (exported, dipakai test) → `{ days: [...], topPaths: [...], quota: { daily, hourly, todayUsed } } | null` (null = key tidak ditemukan / bukan milik user).
@@ -196,8 +200,20 @@ describe("buildUsageSeriesPayload (logika /auth/usage-series)", () => {
       CLIENTS_PATH,
       JSON.stringify(
         {
-          "key-primary": { name: "Budi", tier: "premium", provider: "google", providerId: "111", dailyQuota: 500 },
-          "key-bot": { name: "Budi", tier: "premium", provider: "google", providerId: "111", label: "bot-discord" },
+          "key-primary": {
+            name: "Budi",
+            tier: "premium",
+            provider: "google",
+            providerId: "111",
+            dailyQuota: 500,
+          },
+          "key-bot": {
+            name: "Budi",
+            tier: "premium",
+            provider: "google",
+            providerId: "111",
+            label: "bot-discord",
+          },
           "key-orang-lain": { name: "Ani", tier: "free", provider: "github", providerId: "999" },
         },
         null,
@@ -289,9 +305,7 @@ export function buildUsageSeriesPayload(user, query = {}) {
   const keys = listKeysForUser(user?.provider, user?.id);
   if (!keys.length) return null;
   const requested = typeof query.key === "string" && query.key ? query.key : null;
-  const owned = requested
-    ? keys.find((k) => k.apiKey === requested)
-    : keys.find((k) => !k.label) || keys[0];
+  const owned = requested ? keys.find((k) => k.apiKey === requested) : keys.find((k) => !k.label) || keys[0];
   if (!owned) return null;
   // days di-clamp diam-diam ke 1-30 (retensi usage.json cuma 30 hari),
   // non-angka -> default 14. Bukan error: query nyeleneh gak perlu 400.
@@ -339,9 +353,11 @@ git commit -m "Tambah GET /auth/usage-series: data grafik usage per key (self-se
 Route sudah ada (`src/app.js:128-137`) tapi belum punya test — kunci perilakunya sebelum frontend bergantung padanya.
 
 **Files:**
+
 - Test: `tests/openapiPublic.test.js` (baru)
 
 **Interfaces:**
+
 - Consumes: app boot pattern dari `tests/auth.routes.test.js` (dynamic import + port acak + SESSION_STORE_PATH tmp).
 - Produces: — (test only).
 
@@ -419,11 +435,13 @@ git commit -m "Test regression /openapi.json publik (dipakai tombol unduh di doc
 ### Task 4: Frontend — panel usage + tombol Unduh OpenAPI
 
 **Files:**
+
 - Create: `public/usage-panel.js`
 - Modify: `public/index.html` (markup panel setelah kartu API key ~baris 963; tag script setelah `./app.js` ~baris 986; link OpenAPI di hint kartu ~baris 959-962)
 - Test: otomatis tercakup `tests/publicSyntax.test.js` (parse semua `public/*.js`)
 
 **Interfaces:**
+
 - Consumes: `GET /auth/keys` (401 kalau bukan OAuth → panel tetap tersembunyi), `GET /auth/usage-series?key=&days=14` (Task 2).
 - Produces: — (UI leaf).
 
@@ -466,8 +484,8 @@ Panel ikut kelas `apikey-card` yang sudah ada — dia baru terlihat setelah JS m
 Di hint terakhir kartu API key (blok "Playground di bawah otomatis pakai key ini…", ~baris 959-962), tambahkan di akhir kalimat (masih di dalam `<div class="apikey-hint">` yang sama):
 
 ```html
-Spec mesin-terbaca: <a href="/openapi.json" target="_blank" style="color: var(--green)">unduh OpenAPI</a>
-— impor ke Postman/Insomnia/Swagger UI.
+Spec mesin-terbaca: <a href="/openapi.json" target="_blank" style="color: var(--green)">unduh OpenAPI</a> —
+impor ke Postman/Insomnia/Swagger UI.
 ```
 
 Setelah `<script src="./app.js"></script>` (~baris 986), tambahkan:

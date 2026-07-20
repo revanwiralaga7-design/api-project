@@ -243,9 +243,7 @@ export function buildUsageSeriesPayload(user, query = {}) {
   const keys = listKeysForUser(user?.provider, user?.id);
   if (!keys.length) return null;
   const requested = typeof query.key === "string" && query.key ? query.key : null;
-  const owned = requested
-    ? keys.find((k) => k.apiKey === requested)
-    : keys.find((k) => !k.label) || keys[0];
+  const owned = requested ? keys.find((k) => k.apiKey === requested) : keys.find((k) => !k.label) || keys[0];
   if (!owned) return null;
   // days di-clamp diam-diam ke 1-30 (retensi usage.json cuma 30 hari),
   // non-angka -> default 14. Bukan error: query nyeleneh gak perlu 400.

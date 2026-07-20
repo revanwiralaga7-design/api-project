@@ -32,8 +32,7 @@
       col.style.flexDirection = "column";
       col.style.justifyContent = "flex-end";
       col.style.height = "100%";
-      col.title =
-        d.day + " · " + d.total + " request" + (d.limited ? " (" + d.limited + " kena limit)" : "");
+      col.title = d.day + " · " + d.total + " request" + (d.limited ? " (" + d.limited + " kena limit)" : "");
 
       var ok = d.total - d.limited;
       // Bagian kena 429 di atas (merah), sisanya hijau — bar 0 tetap
