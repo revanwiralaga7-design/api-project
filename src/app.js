@@ -4,7 +4,8 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import session from "express-session";
-import sessionFileStore from "session-file-store";
+import sqliteSessionStore from "better-sqlite3-session-store";
+import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -49,25 +50,34 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 
 // Session + passport buat login Google/GitHub (proteksi Docs, /index.html).
-// Dulu pakai MemoryStore bawaan express-session — hilang tiap restart/deploy
-// (semua orang ke-logout) dan bakal bocor memory kalau server idle lama
-// (MemoryStore gak pernah reap sendiri). Sekarang pakai FileStore: session
-// ditulis ke disk (SESSION_STORE_PATH, default ./data/sessions), jadi tahan
-// restart proses selama disk-nya sama (masih ilang kalau Railway redeploy ke
-// container baru — filesystem-nya ephemeral kecuali dipasangin volume).
-// Ini masih penyimpanan SATU INSTANCE — kalau nanti di-scale ke banyak
-// instance sekaligus, ganti ke store yang dibagi bareng (mis. connect-redis),
-// FileStore gak cocok buat itu (tiap instance punya disk sendiri-sendiri).
-const FileStore = sessionFileStore(session);
+// Riwayat store: MemoryStore bawaan (hilang tiap restart + bocor memory) →
+// session-file-store (tahan restart, tapi paketnya udah gak di-maintain) →
+// sekarang better-sqlite3: satu file .sqlite (SESSION_STORE_PATH, default
+// ./data/sessions.sqlite), tahan restart proses selama disk-nya sama (masih
+// ilang kalau Railway redeploy ke container baru — filesystem-nya ephemeral
+// kecuali dipasangin volume). Ini masih penyimpanan SATU INSTANCE — kalau
+// nanti di-scale ke banyak instance sekaligus, ganti ke store yang dibagi
+// bareng (mis. connect-redis), file SQLite lokal gak cocok buat itu.
+const SqliteStore = sqliteSessionStore(session);
+// Reaper bawaan store (dipanggil dari constructor, GAK BISA dimatiin lewat
+// opsi — `expired.clear: false` tetap ke-truthy-kan jadi true sama bug
+// `(x && x.clear) || true` di paketnya) pakai setInterval tanpa unref, bikin
+// proses Node gak bisa exit sendiri — test suite (node --test) yang import
+// app.js jadi nge-hang selamanya. Override di prototype: logika reap-nya
+// sama persis (delete session kadaluarsa tiap interval), cuma timer-nya
+// di-unref biar gak nahan proses hidup.
+SqliteStore.prototype.startInterval = function startIntervalUnref() {
+  setInterval(this.clearExpiredSessions.bind(this), this.expired.intervalMs).unref();
+};
+fs.mkdirSync(path.dirname(config.session.storePath), { recursive: true });
+const sessionDb = new Database(config.session.storePath);
 app.use(
   session({
-    store: new FileStore({
-      path: config.session.storePath,
-      // Detik, disamain sama cookie.maxAge di bawah — kalau beda, sesi bisa
-      // kehapus dari disk padahal cookie di browser masih dianggap valid
-      // (default FileStore cuma 1 jam kalau ini gak di-set).
-      ttl: 7 * 24 * 60 * 60,
-      logFn: () => {} // diemin log read/write per-request bawaan FileStore
+    store: new SqliteStore({
+      client: sessionDb,
+      // Reap session kadaluarsa tiap 15 menit (MemoryStore dulu gak pernah
+      // reap sama sekali — ini salah satu alasan pindah).
+      expired: { clear: true, intervalMs: 15 * 60 * 1000 }
     }),
     secret: config.session.secret || "dev-only-secret-JANGAN-dipakai-produksi-ganti-di-.env",
     resave: false,

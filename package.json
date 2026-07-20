@@ -17,21 +17,22 @@
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
     "axios": "^1.18.1",
-    "axios-cookiejar-support": "^5.0.3",
-    "cheerio": "latest",
+    "axios-cookiejar-support": "^7.0.0",
+    "better-sqlite3": "^12.11.1",
+    "better-sqlite3-session-store": "^0.1.0",
+    "cheerio": "^1.2.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "express-rate-limit": "^7.5.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.6.0",
     "express-session": "^1.18.1",
     "helmet": "^8.0.0",
     "morgan": "^1.10.0",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
-    "pm2": "^5.4.3",
-    "session-file-store": "^1.5.0",
-    "tough-cookie": "^5.0.0"
+    "pm2": "^7.0.3",
+    "tough-cookie": "^6.0.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

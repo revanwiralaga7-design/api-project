@@ -26,7 +26,7 @@ describe("wajib API key (integration, HTTP asli)", () => {
 
   before(async () => {
     tmpSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "febry-api-key-test-"));
-    process.env.SESSION_STORE_PATH = tmpSessionDir;
+    process.env.SESSION_STORE_PATH = path.join(tmpSessionDir, "sessions.sqlite");
     fs.writeFileSync(CLIENTS_PATH, JSON.stringify(FIXTURE, null, 2), "utf8");
 
     const { default: app } = await import("../src/app.js");

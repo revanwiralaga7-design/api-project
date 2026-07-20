@@ -86,7 +86,7 @@ describe("/auth/* (integration, Google & GitHub sengaja dikosongin)", () => {
     process.env.GOOGLE_CLIENT_SECRET = "";
     process.env.GITHUB_CLIENT_ID = "";
     process.env.GITHUB_CLIENT_SECRET = "";
-    process.env.SESSION_STORE_PATH = tmpSessionDir;
+    process.env.SESSION_STORE_PATH = path.join(tmpSessionDir, "sessions.sqlite");
 
     const { default: app } = await import("../src/app.js");
 

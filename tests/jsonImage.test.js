@@ -64,7 +64,7 @@ describe("?format=image (integration, HTTP asli)", () => {
 
   before(async () => {
     tmpSessionDir = fs.mkdtempSync(path.join(os.tmpdir(), "febry-api-jsonimage-test-"));
-    process.env.SESSION_STORE_PATH = tmpSessionDir;
+    process.env.SESSION_STORE_PATH = path.join(tmpSessionDir, "sessions.sqlite");
     fs.writeFileSync(
       CLIENTS_PATH,
       JSON.stringify({ "key-img-test": { name: "Img Test", tier: "free" } }, null, 2),

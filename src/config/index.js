@@ -40,10 +40,11 @@ export const config = {
     // Kalau kosong: pakai secret dev yang gak aman, cuma biar server tetap
     // nyala pas lagi coba-coba lokal. WAJIB diisi sebelum online publik.
     secret: process.env.SESSION_SECRET || "",
-    // Direktori file session (lihat src/app.js). SESSION_STORE_PATH menang
-    // kalau di-set; kalau nggak, ikut DATA_DIR (default ./data/sessions) —
-    // biar satu env DATA_DIR aja cukup mindahin SEMUA file runtime ke volume.
-    storePath: process.env.SESSION_STORE_PATH || path.join(DATA_DIR, "sessions")
+    // File database SQLite buat session (lihat src/app.js). SESSION_STORE_PATH
+    // menang kalau di-set (path FILE .sqlite, bukan direktori); kalau nggak,
+    // ikut DATA_DIR (default ./data/sessions.sqlite) — biar satu env DATA_DIR
+    // aja cukup mindahin SEMUA file runtime ke volume.
+    storePath: process.env.SESSION_STORE_PATH || path.join(DATA_DIR, "sessions.sqlite")
   },
   oauth: {
     google: {

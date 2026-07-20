@@ -1,4 +1,4 @@
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { config } from "../config/index.js";
 
 export const TIER_MAX = {
@@ -10,9 +10,11 @@ export const TIER_MAX = {
 
 export function keyForRequest(req) {
   // Semua request yang lolos requireApiKey pasti ber-apiKey — free sekarang
-  // di-limit per key (per akun), bukan per IP. Fallback req.ip cuma kepakai
-  // di path publik tanpa key (/api/me, /api/endpoints).
-  return req.client?.apiKey || req.ip;
+  // di-limit per key (per akun), bukan per IP. Fallback per-IP cuma kepakai
+  // di path publik tanpa key (/api/me, /api/endpoints) — pakai helper
+  // ipKeyGenerator biar IPv6 di-truncate ke /56 (satu subnet = satu counter,
+  // wajib sejak express-rate-limit v8, gak bisa req.ip mentah).
+  return req.client?.apiKey || ipKeyGenerator(req.ip);
 }
 
 export function maxForRequest(req) {
