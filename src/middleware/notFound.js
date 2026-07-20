@@ -1,7 +1,7 @@
-export function notFound(req, res, next) {
+export function notFound(req, res, _next) {
   res.status(404).json({
     status: false,
-    error: `Route tidak ditemukan: ${req.method} ${req.originalUrl}`
+    error: `Route tidak ditemukan: ${req.method} ${req.originalUrl}`,
   });
 }
 

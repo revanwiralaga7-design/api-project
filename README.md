@@ -11,8 +11,14 @@ npm install
 cp .env.example .env
 npm run dev     # mode development (auto-restart)
 # atau
-npm start       # mode production
+npm start       # mode production (node polos, TANPA auto-restart)
+# atau
+npm run start:pm2  # production dengan supervisor PM2 (butuh `npm i -g pm2`)
 ```
+
+> Fitur Apply/restart di panel admin keluar via `process.exit(0)` dan
+> mengandalkan supervisor (PM2, Docker `--restart`, systemd, nodemon) buat
+> ngidupin lagi. Dengan `npm start` polos, proses mati beneran setelah Apply.
 
 Server berjalan di `http://localhost:3000` secara default (ubah lewat `.env`).
 
@@ -62,11 +68,11 @@ curl "https://host/api/youtube/search?query=naruto&apikey=<key>"
 Limit dihitung **per API key** (per akun), bukan per IP dan bukan satu
 counter global:
 
-| Tier | Limit | Cara dapet |
-|---|---|---|
-| Free | 100 request/jam | **login Google/GitHub di halaman docs** — API key dibuat otomatis buat akunmu (sekali, permanen) dan tampil di kartu "API KEY KAMU" di docs |
-| Premium | 1000 request/jam | minta admin upgrade key kamu (atau dibuatkan key premium manual) |
-| Admin | unlimited | key yang tier-nya `admin` di clients.json — **otomatis** buat akun Google/GitHub yang login docs sambil pegang session admin (lihat catatan di bawah), atau di-set manual lewat client manager |
+| Tier    | Limit            | Cara dapet                                                                                                                                                                                     |
+| ------- | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Free    | 100 request/jam  | **login Google/GitHub di halaman docs** — API key dibuat otomatis buat akunmu (sekali, permanen) dan tampil di kartu "API KEY KAMU" di docs                                                    |
+| Premium | 1000 request/jam | minta admin upgrade key kamu (atau dibuatkan key premium manual)                                                                                                                               |
+| Admin   | unlimited        | key yang tier-nya `admin` di clients.json — **otomatis** buat akun Google/GitHub yang login docs sambil pegang session admin (lihat catatan di bawah), atau di-set manual lewat client manager |
 
 > **Login admin + login Google/GitHub = key kamu naik ke admin.** Kalau kamu
 > masuk docs lewat admin key (`/auth/admin-session`, dipanggil otomatis dari
@@ -78,10 +84,12 @@ counter global:
 > nulis "free" — membingungkan.
 
 **Bikin API key client secara manual (selain jalur login docs):**
+
 ```bash
 npm run create-key -- "nama-client" premium
 # atau: free / admin
 ```
+
 Key baru langsung aktif (tersimpan di `src/config/clients.json` — file ini
 di-gitignore karena isinya API key asli, jangan di-commit; lihat
 `clients.example.json` buat formatnya. Dibaca ulang tiap request, jadi gak
@@ -97,7 +105,7 @@ Angka default (100/1000 per jam) bisa diubah lewat `RATE_LIMIT_FREE_PER_HOUR`
 / `RATE_LIMIT_PREMIUM_PER_HOUR` / `RATE_LIMIT_WINDOW_MS` di `.env`.
 
 > **Deploy di belakang proxy (Railway/Render/Heroku/dst)?** `app.set("trust
-> proxy", 1)` di `src/app.js` WAJIB ada (udah ada di project ini) — tanpa
+proxy", 1)` di `src/app.js` WAJIB ada (udah ada di project ini) — tanpa
 > ini, request tanpa `x-api-key` (diidentifikasi lewat IP) bisa kelihatan
 > "reset" terus limitnya, soalnya Express baca IP proxy internal, bukan IP
 > pengunjung asli.
@@ -188,23 +196,24 @@ internet publik.
 Panel admin kepisah jadi beberapa halaman, saling terhubung lewat nav bar
 di atas tiap halaman:
 
-| Halaman | Fungsi |
-|---|---|
-| `/features.html` | Landing page publik — jelasin fitur Justice API, gak butuh login |
-| `/signin.html` | Login Google/GitHub, buat buka `/index.html` |
-| `/index.html` | Dokumentasi & playground API — **butuh login Google/GitHub** (lihat bagian di atas), beda dari admin key |
-| `/login.html` | Login admin — masukin `ADMIN_API_KEY`, semua halaman admin di bawah lempar ke sini kalau belum login |
-| `/admin.html` | **Dashboard** — ringkasan jumlah endpoint/kategori/client, status server, dan tabel semua endpoint (bisa cari, edit, hapus langsung) |
-| `/endpoint-add.html` | **Tambah Endpoint** — paste class code → analisis → pilih method & parameter → preview diff → apply |
-| `/endpoint-edit.html` | **Edit Endpoint** — dibuka dari tombol "Edit" di dashboard. Ada 2 mode: **Edit Cepat** (ganti nama/deskripsi/kategori/wajib-opsional param, gak nyentuh kode) dan **Regenerate Penuh** (ganti method/parameter/logic — kerjanya hapus definisi lama + tulis definisi baru secara atomik, rollback otomatis kalau gagal) |
-| `/client-manager.html` | **Client & API Key** — buat/lihat/edit tier/cabut API key client (beda dari `ADMIN_API_KEY` di atas — ini kuota pemakaian API buat konsumen) |
-| `/admin-ops.html` | **Ops** — health check, riwayat scaffold (undo), usage analytics, cache per endpoint, log viewer, ekspor OpenAPI, backup & restore |
+| Halaman                | Fungsi                                                                                                                                                                                                                                                                                                                  |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/features.html`       | Landing page publik — jelasin fitur Justice API, gak butuh login                                                                                                                                                                                                                                                        |
+| `/signin.html`         | Login Google/GitHub, buat buka `/index.html`                                                                                                                                                                                                                                                                            |
+| `/index.html`          | Dokumentasi & playground API — **butuh login Google/GitHub** (lihat bagian di atas), beda dari admin key                                                                                                                                                                                                                |
+| `/login.html`          | Login admin — masukin `ADMIN_API_KEY`, semua halaman admin di bawah lempar ke sini kalau belum login                                                                                                                                                                                                                    |
+| `/admin.html`          | **Dashboard** — ringkasan jumlah endpoint/kategori/client, status server, dan tabel semua endpoint (bisa cari, edit, hapus langsung)                                                                                                                                                                                    |
+| `/endpoint-add.html`   | **Tambah Endpoint** — paste class code → analisis → pilih method & parameter → preview diff → apply                                                                                                                                                                                                                     |
+| `/endpoint-edit.html`  | **Edit Endpoint** — dibuka dari tombol "Edit" di dashboard. Ada 2 mode: **Edit Cepat** (ganti nama/deskripsi/kategori/wajib-opsional param, gak nyentuh kode) dan **Regenerate Penuh** (ganti method/parameter/logic — kerjanya hapus definisi lama + tulis definisi baru secara atomik, rollback otomatis kalau gagal) |
+| `/client-manager.html` | **Client & API Key** — buat/lihat/edit tier/cabut API key client (beda dari `ADMIN_API_KEY` di atas — ini kuota pemakaian API buat konsumen)                                                                                                                                                                            |
+| `/admin-ops.html`      | **Ops** — health check, riwayat scaffold (undo), usage analytics, cache per endpoint, log viewer, ekspor OpenAPI, backup & restore                                                                                                                                                                                      |
 
 ### Tambah endpoint baru
 
 Buka `/endpoint-add.html` (link "+ Endpoint" di nav bar semua halaman admin, atau tombol di dashboard).
 
 Alurnya:
+
 1. Tempel kode class API baru (mis. `class SpotifyDL { ... }`) di kotak kode, klik **Analisis Class**.
 2. Pilih method yang mau dipanggil dari daftar yang kedetect otomatis (bukan ngetik manual — jadi gak mungkin salah nama method). Parameternya juga otomatis ke-isi sesuai signature asli, tinggal atur nama field request-nya kalau mau beda (mis. service pakai `url` tapi kamu mau expose sebagai `urltiktok`).
 3. Kalau constructor class-nya butuh argumen, ada bagian khusus buat nentuin argumen itu diambil dari request atau nilai tetap (mis. API key) — instance-nya otomatis dibuat ulang per-request kalau perlu.
@@ -215,7 +224,7 @@ Alurnya:
 
 Endpoint juga otomatis dicek biar gak dobel-daftar (path + method yang sama, atau import service yang sama ditambahin berkali-kali di file yang sama).
 
-Kalau server jalan via `npm run dev` (nodemon), server auto-restart setelah Apply. Kalau via `npm start`, restart manual (`Ctrl+C` lalu `npm start` lagi).
+Kalau server jalan via `npm run dev` (nodemon) atau `npm run start:pm2`, server auto-restart setelah Apply. Kalau via `npm start` (node polos), proses exit dan harus dinyalain lagi manual (`npm start` lagi).
 
 > Catatan: generator ini pakai pencocokan bracket sederhana buat nyisipin ke `routes/index.js` dan `public/data.js`, jadi hindari karakter `{ } [ ]` literal di kolom deskripsi/nama endpoint.
 
@@ -262,29 +271,29 @@ public/
 
 ## Endpoint admin (`/api/admin/*`, butuh header `x-admin-key`)
 
-| Method | Path | Fungsi |
-|---|---|---|
-| GET | `/api/admin/whoami` | cek admin key valid (dipakai `/login.html`) |
-| GET | `/api/admin/meta` | daftar kategori & route file (buat dropdown) |
-| GET | `/api/admin/endpoints` | daftar semua endpoint (buat dashboard) |
-| GET | `/api/admin/endpoints/detail?path=&method=` | detail 1 endpoint (buat prefill form edit) |
-| POST | `/api/admin/analyze` | parse class code → daftar method & parameter |
-| POST | `/api/admin/preview` / `/apply` | preview & tulis endpoint baru |
-| POST | `/api/admin/edit/preview` / `/edit/apply` | ganti endpoint (hapus lama + tulis baru, atomik) |
-| POST | `/api/admin/endpoints/quick-edit` | ubah nama/deskripsi/kategori/wajib-opsional param (gak nyentuh kode) |
-| POST | `/api/admin/delete/preview` / `/delete/apply` | preview & hapus endpoint |
-| POST | `/api/admin/verify` | test endpoint yang baru dibuat lewat HTTP |
-| POST | `/api/admin/batch/preview` / `/batch/apply` | buat BANYAK endpoint sekaligus (1 per method) dari 1 class |
-| GET/POST/DELETE | `/api/admin/history` (+`/rollback`, `/:id`) | riwayat scaffold + undo (rollback ke snapshot sebelum apply) |
-| GET | `/api/admin/usage?days=` | analytics pemakaian per client & per endpoint |
-| GET/POST | `/api/admin/cache` (+`/clear`) | kelola rule cache per endpoint (TTL detik) |
-| GET | `/api/admin/logs?lines=&filter=` | tail access log (data/access.log) |
-| GET/POST/DELETE | `/api/admin/health-tests` | simpan/hapus test params (+ `assertFields`) per endpoint buat health check |
-| POST | `/api/admin/health/run` | hit semua endpoint terdaftar, laporan ok/degraded/fail |
-| GET | `/api/admin/openapi.json` | ekspor OpenAPI 3.0 (import ke Postman/Swagger UI) |
-| GET | `/api/admin/backup` | download bundle backup (clients, config runtime, kode hasil scaffold) |
-| POST | `/api/admin/backup/restore` | restore bundle backup (kondisi sebelum restore masuk riwayat/undo) |
-| GET/POST/PATCH/DELETE | `/api/admin/clients` (+`/:apiKey`) | CRUD client & API key (+ `expiresAt`, `dailyQuota`) |
+| Method                | Path                                          | Fungsi                                                                     |
+| --------------------- | --------------------------------------------- | -------------------------------------------------------------------------- |
+| GET                   | `/api/admin/whoami`                           | cek admin key valid (dipakai `/login.html`)                                |
+| GET                   | `/api/admin/meta`                             | daftar kategori & route file (buat dropdown)                               |
+| GET                   | `/api/admin/endpoints`                        | daftar semua endpoint (buat dashboard)                                     |
+| GET                   | `/api/admin/endpoints/detail?path=&method=`   | detail 1 endpoint (buat prefill form edit)                                 |
+| POST                  | `/api/admin/analyze`                          | parse class code → daftar method & parameter                               |
+| POST                  | `/api/admin/preview` / `/apply`               | preview & tulis endpoint baru                                              |
+| POST                  | `/api/admin/edit/preview` / `/edit/apply`     | ganti endpoint (hapus lama + tulis baru, atomik)                           |
+| POST                  | `/api/admin/endpoints/quick-edit`             | ubah nama/deskripsi/kategori/wajib-opsional param (gak nyentuh kode)       |
+| POST                  | `/api/admin/delete/preview` / `/delete/apply` | preview & hapus endpoint                                                   |
+| POST                  | `/api/admin/verify`                           | test endpoint yang baru dibuat lewat HTTP                                  |
+| POST                  | `/api/admin/batch/preview` / `/batch/apply`   | buat BANYAK endpoint sekaligus (1 per method) dari 1 class                 |
+| GET/POST/DELETE       | `/api/admin/history` (+`/rollback`, `/:id`)   | riwayat scaffold + undo (rollback ke snapshot sebelum apply)               |
+| GET                   | `/api/admin/usage?days=`                      | analytics pemakaian per client & per endpoint                              |
+| GET/POST              | `/api/admin/cache` (+`/clear`)                | kelola rule cache per endpoint (TTL detik)                                 |
+| GET                   | `/api/admin/logs?lines=&filter=`              | tail access log (data/access.log)                                          |
+| GET/POST/DELETE       | `/api/admin/health-tests`                     | simpan/hapus test params (+ `assertFields`) per endpoint buat health check |
+| POST                  | `/api/admin/health/run`                       | hit semua endpoint terdaftar, laporan ok/degraded/fail                     |
+| GET                   | `/api/admin/openapi.json`                     | ekspor OpenAPI 3.0 (import ke Postman/Swagger UI)                          |
+| GET                   | `/api/admin/backup`                           | download bundle backup (clients, config runtime, kode hasil scaffold)      |
+| POST                  | `/api/admin/backup/restore`                   | restore bundle backup (kondisi sebelum restore masuk riwayat/undo)         |
+| GET/POST/PATCH/DELETE | `/api/admin/clients` (+`/:apiKey`)            | CRUD client & API key (+ `expiresAt`, `dailyQuota`)                        |
 
 Halaman **Ops** (`/admin-ops.html`) ngebungkus semuanya: health check,
 riwayat+undo, usage analytics, cache, log viewer, ekspor OpenAPI, backup &
@@ -335,21 +344,21 @@ gak di-set eksplisit — login orang gak ke-logout tiap deploy lagi.
 
 ## Endpoint auth (`/auth/*`, login Docs)
 
-| Method | Path | Fungsi |
-|---|---|---|
-| GET | `/auth/google` | mulai login Google (redirect ke consent screen Google) |
-| GET | `/auth/google/callback` | callback Google, bikin session lalu redirect ke Docs |
-| GET | `/auth/github` | mulai login GitHub |
-| GET | `/auth/github/callback` | callback GitHub, bikin session lalu redirect ke Docs |
-| GET | `/auth/logout` | hapus session, redirect ke `/features.html` |
-| GET | `/auth/me` | JSON `{ user }` — profil yang lagi login, atau `null` |
+| Method | Path                    | Fungsi                                                 |
+| ------ | ----------------------- | ------------------------------------------------------ |
+| GET    | `/auth/google`          | mulai login Google (redirect ke consent screen Google) |
+| GET    | `/auth/google/callback` | callback Google, bikin session lalu redirect ke Docs   |
+| GET    | `/auth/github`          | mulai login GitHub                                     |
+| GET    | `/auth/github/callback` | callback GitHub, bikin session lalu redirect ke Docs   |
+| GET    | `/auth/logout`          | hapus session, redirect ke `/features.html`            |
+| GET    | `/auth/me`              | JSON `{ user }` — profil yang lagi login, atau `null`  |
 
 ## Daftar endpoint (ringkas)
 
-| Kategori | Path | Keterangan |
-|---|---|---|
-| YouTube | `/api/youtube/search` | Cari video YouTube berdasarkan kata kunci |
-| Anime | `/api/anime/search` | Cari anime (scrape Nimegami) berdasarkan kata kunci |
+| Kategori | Path                  | Keterangan                                          |
+| -------- | --------------------- | --------------------------------------------------- |
+| YouTube  | `/api/youtube/search` | Cari video YouTube berdasarkan kata kunci           |
+| Anime    | `/api/anime/search`   | Cari anime (scrape Nimegami) berdasarkan kata kunci |
 
 Daftar di atas bisa berubah kapan saja karena endpoint ditambah/dihapus lewat
 panel admin (yang otomatis meng-update `routes/index.js` + `public/data.js`,

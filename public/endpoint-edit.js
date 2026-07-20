@@ -1,6 +1,15 @@
 (async function () {
   "use strict";
-  const { $, adminFetch, escapeHtml, renderMessages, renderFiles, renderNav, guardAdminAccess, methodBadgeClass } = window.AdminShared;
+  const {
+    $,
+    adminFetch,
+    escapeHtml,
+    renderMessages,
+    renderFiles,
+    renderNav,
+    guardAdminAccess,
+    methodBadgeClass,
+  } = window.AdminShared;
   if (!(await guardAdminAccess())) return;
   renderNav(null);
 
@@ -13,12 +22,16 @@
   if (!originalPath) {
     $("origBadge").textContent = "";
     $("notFoundMsg").style.display = "block";
-    $("notFoundMsg").innerHTML = renderMessages(["Gak ada endpoint yang dipilih. Kembali ke dashboard dan klik \"Edit\" di salah satu endpoint."], "err") +
-      `<div class="actions"><a class="btn btn-secondary" href="/admin.html">&larr; Dashboard</a></div>`;
+    $("notFoundMsg").innerHTML =
+      renderMessages(
+        ['Gak ada endpoint yang dipilih. Kembali ke dashboard dan klik "Edit" di salah satu endpoint.'],
+        "err"
+      ) + `<div class="actions"><a class="btn btn-secondary" href="/admin.html">&larr; Dashboard</a></div>`;
     return;
   }
 
-  $("origBadge").innerHTML = `<span class="badge ${methodBadgeClass(originalMethod)}">${escapeHtml(originalMethod)}</span> <code>${escapeHtml(originalPath)}</code>`;
+  $("origBadge").innerHTML =
+    `<span class="badge ${methodBadgeClass(originalMethod)}">${escapeHtml(originalMethod)}</span> <code>${escapeHtml(originalPath)}</code>`;
   $("regenOrigLabel").textContent = `${originalMethod} ${originalPath}`;
 
   function renderQeParams(query) {
@@ -27,7 +40,9 @@
       wrap.innerHTML = `<div class="hint">Endpoint ini gak punya query parameter.</div>`;
       return;
     }
-    wrap.innerHTML = query.map((p, i) => `
+    wrap.innerHTML = query
+      .map(
+        (p, i) => `
       <div class="qe-param-row" data-idx="${i}" data-name="${escapeHtml(p.name)}">
         <div>
           <div class="qname">${escapeHtml(p.name)}</div>
@@ -35,15 +50,21 @@
         </div>
         <label><input type="checkbox" class="qe-req" ${p.required ? "checked" : ""}> wajib</label>
       </div>
-    `).join("");
+    `
+      )
+      .join("");
   }
 
   function renderQePathParams(pathParams) {
     if (!pathParams.length) return;
     $("qePathParamsWrap").style.display = "block";
-    $("qePathParamsList").innerHTML = pathParams.map((p) => `
+    $("qePathParamsList").innerHTML = pathParams
+      .map(
+        (p) => `
       <div class="qe-pathparam">:${escapeHtml(p.name)} — ${escapeHtml(p.desc || "(tanpa deskripsi)")}</div>
-    `).join("");
+    `
+      )
+      .join("");
   }
 
   async function loadQeCategories(selectedId) {
@@ -52,7 +73,9 @@
       const json = await res.json();
       if (!json.status) return;
       const sel = $("qeCategory");
-      sel.innerHTML = json.result.categories.map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${escapeHtml(c.id)})</option>`).join("");
+      sel.innerHTML = json.result.categories
+        .map((c) => `<option value="${c.id}">${escapeHtml(c.label)} (${escapeHtml(c.id)})</option>`)
+        .join("");
       if (selectedId) sel.value = selectedId;
     } catch (e) {
       console.error("Gagal load kategori", e);
@@ -61,16 +84,19 @@
 
   function guessSubPath(fullPath, routeSlug) {
     const prefix = `/api/${routeSlug}`;
-    return fullPath.startsWith(prefix) ? (fullPath.slice(prefix.length) || "/") : fullPath;
+    return fullPath.startsWith(prefix) ? fullPath.slice(prefix.length) || "/" : fullPath;
   }
 
   async function loadDetail() {
     try {
-      const res = await adminFetch(`/api/admin/endpoints/detail?path=${encodeURIComponent(originalPath)}&method=${encodeURIComponent(originalMethod)}`);
+      const res = await adminFetch(
+        `/api/admin/endpoints/detail?path=${encodeURIComponent(originalPath)}&method=${encodeURIComponent(originalMethod)}`
+      );
       const json = await res.json();
       if (!json.status) {
         $("notFoundMsg").style.display = "block";
-        $("notFoundMsg").innerHTML = renderMessages([json.error || "Endpoint gak ketemu."], "err") +
+        $("notFoundMsg").innerHTML =
+          renderMessages([json.error || "Endpoint gak ketemu."], "err") +
           `<div class="actions"><a class="btn btn-secondary" href="/admin.html">&larr; Dashboard</a></div>`;
         return;
       }
@@ -85,7 +111,7 @@
       await loadQeCategories(ep.categoryId);
 
       // --- Section B: prefill "Regenerate Penuh" ---
-      const routeSlug = ep.routeFileBase || (originalPath.match(/^\/api\/([^/]+)/) || [, ""])[1];
+      const routeSlug = ep.routeFileBase || (originalPath.match(/^\/api\/([^/]+)/) || ["", ""])[1];
       $("endpointName").value = ep.name;
       $("endpointDesc").value = ep.desc;
       $("httpMethod").value = ["GET", "POST", "ALL"].includes(ep.method) ? ep.method : "ALL";
@@ -97,7 +123,7 @@
         serviceParamName: q.name,
         requestParamName: q.name,
         required: q.required,
-        desc: q.desc
+        desc: q.desc,
       }));
       form.setParamPrefill(bestGuessParams);
 
@@ -124,13 +150,15 @@
   $("qeSaveBtn").addEventListener("click", async () => {
     const qeResultEl = $("qeResult");
     const paramsPayload = [];
-    $("qeParamsList").querySelectorAll(".qe-param-row").forEach((row) => {
-      paramsPayload.push({
-        name: row.dataset.name,
-        required: row.querySelector(".qe-req").checked,
-        desc: row.querySelector(".qe-desc").value.trim()
+    $("qeParamsList")
+      .querySelectorAll(".qe-param-row")
+      .forEach((row) => {
+        paramsPayload.push({
+          name: row.dataset.name,
+          required: row.querySelector(".qe-req").checked,
+          desc: row.querySelector(".qe-desc").value.trim(),
+        });
       });
-    });
 
     qeResultEl.innerHTML = `<div class="msg">Menyimpan...</div>`;
     $("qeSaveBtn").disabled = true;
@@ -144,8 +172,8 @@
           endpointName: $("qeName").value.trim(),
           endpointDesc: $("qeDesc").value.trim(),
           categoryId: $("qeCategory").value,
-          params: paramsPayload
-        })
+          params: paramsPayload,
+        }),
       });
       const json = await res.json();
       if (!json.status) {
@@ -175,7 +203,7 @@
       const res = await adminFetch("/api/admin/edit/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(lastPayload)
+        body: JSON.stringify(lastPayload),
       });
       const json = await res.json();
       if (!json.status) {
@@ -201,11 +229,14 @@
       const res = await adminFetch("/api/admin/edit/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(lastPayload)
+        body: JSON.stringify(lastPayload),
       });
       const json = await res.json();
       if (!json.status) {
-        resultEl.innerHTML += renderMessages([json.error || "Gagal apply (semua perubahan sudah di-rollback, project aman)"], "err");
+        resultEl.innerHTML += renderMessages(
+          [json.error || "Gagal apply (semua perubahan sudah di-rollback, project aman)"],
+          "err"
+        );
         $("applyBtn").disabled = false;
         return;
       }

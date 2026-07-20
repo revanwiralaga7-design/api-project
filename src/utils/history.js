@@ -51,7 +51,7 @@ export function recordHistory({ action, summary, snapshot }) {
     // project dipindah folder.
     files: Object.fromEntries(
       Object.entries(snapshot).map(([abs, content]) => [path.relative(ROOT, abs), content])
-    )
+    ),
   };
   fs.writeFileSync(historyPath(id), JSON.stringify(entry, null, 2) + "\n", "utf8");
   pruneHistory();
@@ -62,12 +62,16 @@ function pruneHistory() {
   const entries = listHistoryRaw();
   const excess = entries.slice(MAX_ENTRIES);
   for (const e of excess) {
-    try { fs.unlinkSync(historyPath(e.id)); } catch { /* udah kehapus */ }
+    try {
+      fs.unlinkSync(historyPath(e.id));
+    } catch {
+      /* udah kehapus */
+    }
   }
 }
 
 function listHistoryRaw() {
-  let files = [];
+  let files;
   try {
     files = fs.readdirSync(HISTORY_DIR).filter((f) => f.endsWith(".json"));
   } catch {
@@ -104,7 +108,7 @@ export function listHistory() {
       summary: e.summary,
       createdAt: e.createdAt,
       files: Object.keys(e.files || {}),
-      conflictsWith
+      conflictsWith,
     };
   });
 }
@@ -151,4 +155,11 @@ export function deleteHistoryEntry(id) {
   fs.unlinkSync(p);
 }
 
-export default { recordHistory, listHistory, getHistoryEntry, rollbackHistory, deleteHistoryEntry, HISTORY_DIR };
+export default {
+  recordHistory,
+  listHistory,
+  getHistoryEntry,
+  rollbackHistory,
+  deleteHistoryEntry,
+  HISTORY_DIR,
+};

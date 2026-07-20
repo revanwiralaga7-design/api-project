@@ -73,7 +73,9 @@
   function ensureDocsSession(key) {
     if (sessionStorage.getItem("febry_docs_session_ok")) return;
     fetch("/auth/admin-session", { method: "POST", headers: { "x-admin-key": key } })
-      .then((r) => { if (r.ok) sessionStorage.setItem("febry_docs_session_ok", "1"); })
+      .then((r) => {
+        if (r.ok) sessionStorage.setItem("febry_docs_session_ok", "1");
+      })
       .catch(() => {});
   }
 
@@ -92,7 +94,7 @@
 
     const res = await fetch(url, {
       ...options,
-      headers: { ...(options.headers || {}), "x-admin-key": key }
+      headers: { ...(options.headers || {}), "x-admin-key": key },
     });
 
     if (res.status === 401) {
@@ -121,9 +123,17 @@
 
   /* ---------------- Helpers umum ---------------- */
   function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, (c) => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
+    return String(str).replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        })[c]
+    );
   }
 
   function renderMessages(list, type) {
@@ -143,12 +153,14 @@
 
   function renderDiff(diffArr) {
     if (!diffArr) return "";
-    return diffArr.map((d) => {
-      if (d.type === "context") return `<span class="l ctx">⋯ ${d.count} baris tidak berubah ⋯</span>`;
-      const prefix = d.type === "add" ? "+ " : d.type === "remove" ? "- " : "  ";
-      const cls = d.type === "add" ? "add" : d.type === "remove" ? "remove" : "";
-      return `<span class="l ${cls}">${escapeHtml(prefix + d.line)}</span>`;
-    }).join("");
+    return diffArr
+      .map((d) => {
+        if (d.type === "context") return `<span class="l ctx">⋯ ${d.count} baris tidak berubah ⋯</span>`;
+        const prefix = d.type === "add" ? "+ " : d.type === "remove" ? "- " : "  ";
+        const cls = d.type === "add" ? "add" : d.type === "remove" ? "remove" : "";
+        return `<span class="l ${cls}">${escapeHtml(prefix + d.line)}</span>`;
+      })
+      .join("");
   }
 
   /**
@@ -157,24 +169,29 @@
    * `willDelete` dipakai buat kasih tag "AKAN DIHAPUS" tanpa body.
    */
   function renderFiles(files) {
-    return (files || []).map((f) => {
-      let tag = "";
-      if (f.willDelete) tag = '<span class="del">akan DIHAPUS</span>';
-      else if (f.isNew) tag = '<span class="new">file baru</span>';
-      else tag = '<span class="ow">akan diubah</span>';
+    return (files || [])
+      .map((f) => {
+        let tag;
+        if (f.willDelete) tag = '<span class="del">akan DIHAPUS</span>';
+        else if (f.isNew) tag = '<span class="new">file baru</span>';
+        else tag = '<span class="ow">akan diubah</span>';
 
-      let body;
-      if (f.willDelete) {
-        body = `<pre><span class="l remove">(file ini akan dihapus)</span></pre>`;
-      } else if (f.isNew && f.content) {
-        body = `<pre>${f.content.split("\n").map((l) => `<span class="l add">${escapeHtml(l)}</span>`).join("")}</pre>`;
-      } else if (f.isNew && !f.diff) {
-        body = `<pre><span class="l add">(file baru — isi lihat setelah apply)</span></pre>`;
-      } else {
-        body = `<pre>${renderDiff(f.diff)}</pre>`;
-      }
-      return `<div class="file-block"><div class="fname"><span>${escapeHtml(f.path)}</span>${tag}</div>${body}</div>`;
-    }).join("");
+        let body;
+        if (f.willDelete) {
+          body = `<pre><span class="l remove">(file ini akan dihapus)</span></pre>`;
+        } else if (f.isNew && f.content) {
+          body = `<pre>${f.content
+            .split("\n")
+            .map((l) => `<span class="l add">${escapeHtml(l)}</span>`)
+            .join("")}</pre>`;
+        } else if (f.isNew && !f.diff) {
+          body = `<pre><span class="l add">(file baru — isi lihat setelah apply)</span></pre>`;
+        } else {
+          body = `<pre>${renderDiff(f.diff)}</pre>`;
+        }
+        return `<div class="file-block"><div class="fname"><span>${escapeHtml(f.path)}</span>${tag}</div>${body}</div>`;
+      })
+      .join("");
   }
 
   /* ---------------- Nav bar ---------------- */
@@ -183,7 +200,7 @@
     { key: "dashboard", href: "/admin.html", label: "Dashboard" },
     { key: "add", href: "/endpoint-add.html", label: "+ Endpoint" },
     { key: "clients", href: "/client-manager.html", label: "Clients" },
-    { key: "ops", href: "/admin-ops.html", label: "Ops" }
+    { key: "ops", href: "/admin-ops.html", label: "Ops" },
   ];
 
   function renderNav(activeKey) {
@@ -225,6 +242,6 @@
     renderFiles,
     renderNav,
     methodBadgeClass,
-    tierBadgeClass
+    tierBadgeClass,
   };
 })();

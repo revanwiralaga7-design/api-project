@@ -82,8 +82,7 @@
     const card = document.createElement("div");
     card.className = "card";
 
-    const badgeClass =
-      ep.method === "GET" ? "badge-get" : ep.method === "POST" ? "badge-post" : "badge-all";
+    const badgeClass = ep.method === "GET" ? "badge-get" : ep.method === "POST" ? "badge-post" : "badge-all";
     const badgeLabel = ep.method === "ALL" ? "GET/POST" : ep.method;
 
     const head = document.createElement("div");
@@ -127,8 +126,8 @@
                 (ep.pathParams || []).includes(p)
                   ? " · path"
                   : (ep.headers || []).includes(p)
-                  ? " · header"
-                  : " · query"
+                    ? " · header"
+                    : " · query"
               }</td>
               <td>${p.desc}</td>
             </tr>`
@@ -145,7 +144,7 @@
   }
 
   // ---------- Tester builder ----------
-  function buildTester(ep, cat) {
+  function buildTester(ep, _cat) {
     const tester = document.createElement("div");
     tester.className = "tester";
 
@@ -252,7 +251,7 @@
       sendBtn.disabled = true;
       const t0 = performance.now();
       let statusCode = null;
-      let bodyText = "";
+      let bodyText;
       let imgBlobUrl = null;
       let errored = false;
       let res = null;
@@ -272,7 +271,10 @@
       } catch (e) {
         errored = true;
         bodyText = JSON.stringify(
-          { error: "Request gagal — cek apakah Base URL benar, backend jalan, dan CORS diizinkan.", detail: String(e) },
+          {
+            error: "Request gagal — cek apakah Base URL benar, backend jalan, dan CORS diizinkan.",
+            detail: String(e),
+          },
           null,
           2
         );
@@ -285,7 +287,7 @@
       let pretty = bodyText;
       try {
         pretty = JSON.stringify(JSON.parse(bodyText), null, 2);
-      } catch (e) {
+      } catch {
         /* not json, leave as-is */
       }
 
@@ -390,10 +392,7 @@
   }
 
   function highlightJson(str) {
-    const escaped = str
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    const escaped = str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     return escaped.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false)\b|\bnull\b|-?\d+(\.\d+)?([eE][+-]?\d+)?)/g,
       (match) => {
@@ -422,7 +421,7 @@
       } else {
         baseLed.className = "led bad";
       }
-    } catch (e) {
+    } catch {
       baseLed.className = "led bad";
     }
   }

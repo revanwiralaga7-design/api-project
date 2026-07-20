@@ -31,14 +31,16 @@ export function rotateIfNeeded() {
  */
 export function tailAccessLog({ lines = 200, filter = "" } = {}) {
   const n = Math.min(Math.max(Number(lines) || 200, 1), 1000);
-  let content = "";
+  let content;
   try {
     content = fs.readFileSync(ACCESS_LOG_PATH, "utf8");
   } catch {
     return { lines: [], totalMatched: 0 };
   }
   let all = content.split("\n").filter(Boolean);
-  const f = String(filter || "").trim().toLowerCase();
+  const f = String(filter || "")
+    .trim()
+    .toLowerCase();
   if (f) all = all.filter((l) => l.toLowerCase().includes(f));
   return { lines: all.slice(-n), totalMatched: all.length };
 }

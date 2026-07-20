@@ -7,7 +7,13 @@ import { findMatchingClose, escapeRegex, escapeJsString, methodBucket } from "./
 /* 2. Generate isi file service                                        */
 /* ------------------------------------------------------------------ */
 
-export function buildServiceFileContent({ importLines, preludeCode, classBlock, className, hasInlineExport }) {
+export function buildServiceFileContent({
+  importLines,
+  preludeCode,
+  classBlock,
+  className,
+  hasInlineExport,
+}) {
   const header = `/**\n * Auto-generated lewat halaman /admin.html — silakan dirapikan lagi\n * kalau perlu, ini cuma hasil scaffold dari kode yang di-paste.\n */\n`;
   const imports = importLines.length ? importLines.join("\n") + "\n\n" : "";
   const prelude = preludeCode ? preludeCode + "\n\n" : "";
@@ -83,13 +89,13 @@ export function buildRouteBlockCode({
   ctor,
   allRequestParams,
   endpointName,
-  endpointDesc
+  endpointDesc,
 }) {
   const method = (httpMethod || "ALL").toLowerCase();
   const pathParams = extractPathParams(subPath);
   const reqParams = (allRequestParams || []).filter((p) => !pathParams.includes(p.requestParamName));
 
-  let paramsLine = "";
+  let paramsLine;
   if (method === "all") {
     paramsLine = `    const params = req.method === "GET" ? req.query : req.body;\n`;
   } else if (method === "get") {
@@ -102,7 +108,9 @@ export function buildRouteBlockCode({
   // pattern JS (kalau enggak -> SyntaxError). Urutan dari parser
   // seharusnya udah bener (sumbernya emang valid JS), tapi diurutkan
   // ulang di sini sebagai jaring pengaman.
-  const orderedReqParams = [...reqParams].sort((a, b) => (a.kind === "rest" ? 1 : 0) - (b.kind === "rest" ? 1 : 0));
+  const orderedReqParams = [...reqParams].sort(
+    (a, b) => (a.kind === "rest" ? 1 : 0) - (b.kind === "rest" ? 1 : 0)
+  );
 
   const destructure = orderedReqParams.length
     ? `    const { ${orderedReqParams
@@ -116,13 +124,16 @@ export function buildRouteBlockCode({
   // sendiri yang isi default itu (lihat Parser Upgrade v2, poin 4).
   const validations = reqParams
     .filter((p) => p.required && p.kind !== "rest")
-    .map((p) => `    if (!${p.requestParamName}) throw new ApiError("Parameter '${p.requestParamName}' wajib diisi", 400);\n`)
+    .map(
+      (p) =>
+        `    if (!${p.requestParamName}) throw new ApiError("Parameter '${p.requestParamName}' wajib diisi", 400);\n`
+    )
     .join("");
 
   const methodOrderedArgs = (methodArgs || []).map((a) => ({
     serviceKey: a.serviceParamName,
     kind: a.kind || "property",
-    expr: pathParams.includes(a.requestParamName) ? `req.params.${a.requestParamName}` : a.requestParamName
+    expr: pathParams.includes(a.requestParamName) ? `req.params.${a.requestParamName}` : a.requestParamName,
   }));
   const methodCallArg = buildCallExpression(methodParamStyle || "none", methodOrderedArgs);
 
@@ -133,7 +144,7 @@ export function buildRouteBlockCode({
     const ctorOrderedArgs = ctor.args.map((a) => ({
       serviceKey: a.serviceParamName,
       kind: a.kind || "property",
-      expr: a.source === "static" ? JSON.stringify(a.staticValue ?? "") : a.requestParamName
+      expr: a.source === "static" ? JSON.stringify(a.staticValue ?? "") : a.requestParamName,
     }));
     const ctorCallArg = buildCallExpression(ctor.style || "positional", ctorOrderedArgs);
     instanceSetupLine = `    const ${instanceName} = new ${className}(${ctorCallArg});\n`;
@@ -146,25 +157,34 @@ export function buildRouteBlockCode({
 
   return {
     code: `${comment}\nrouter.${method}(\n  "${subPath}",\n  asyncHandler(async (req, res) => {\n${body}  })\n);\n`,
-    usesPerRequestInstance
+    usesPerRequestInstance,
   };
 }
 
-export function buildNewRouteFileContent({ className, serviceFileName, instanceName, routeBlockCode, usesPerRequestInstance }) {
+export function buildNewRouteFileContent({
+  className,
+  serviceFileName,
+  instanceName,
+  routeBlockCode,
+  usesPerRequestInstance,
+}) {
   const lines = [
     `import { Router } from "express";`,
     `import ${className} from "../services/${serviceFileName}.service.js";`,
     `import { asyncHandler } from "../utils/asyncHandler.js";`,
     `import { ok, ApiError } from "../utils/response.js";`,
     ``,
-    `const router = Router();`
+    `const router = Router();`,
   ];
   if (!usesPerRequestInstance) lines.push(`const ${instanceName} = new ${className}();`);
   lines.push(``, routeBlockCode, `export default router;`, ``);
   return lines.join("\n");
 }
 
-export function appendRouteBlockToExistingFile(existingContent, { className, serviceFileName, instanceName, routeBlockCode, usesPerRequestInstance }) {
+export function appendRouteBlockToExistingFile(
+  existingContent,
+  { className, serviceFileName, instanceName, routeBlockCode, usesPerRequestInstance }
+) {
   let content = existingContent;
 
   const hasImport = new RegExp(`import\\s+${className}\\s+from`).test(content);
@@ -196,7 +216,8 @@ export function appendRouteBlockToExistingFile(existingContent, { className, ser
   }
 
   const exportAnchor = content.match(/export default router;\s*$/m);
-  if (!exportAnchor) throw new Error("File route existing tidak punya 'export default router;' — format tidak dikenali.");
+  if (!exportAnchor)
+    throw new Error("File route existing tidak punya 'export default router;' — format tidak dikenali.");
   const insertAt = exportAnchor.index;
   content = content.slice(0, insertAt) + routeBlockCode + "\n" + content.slice(insertAt);
 
@@ -241,8 +262,10 @@ export function findDuplicateEndpoint(indexContent, fullPath, method) {
   let depth = 0;
   let start = -1;
   for (let i = 0; i < arrInner.length; i++) {
-    if (arrInner[i] === "{") { if (depth === 0) start = i; depth++; }
-    else if (arrInner[i] === "}") {
+    if (arrInner[i] === "{") {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (arrInner[i] === "}") {
       depth--;
       if (depth === 0) {
         const entry = arrInner.slice(start, i + 1);
@@ -259,7 +282,6 @@ export function findDuplicateEndpoint(indexContent, fullPath, method) {
   }
   return null;
 }
-
 
 /* ------------------------------------------------------------------ */
 /* 4. Update src/routes/index.js                                       */
@@ -310,8 +332,6 @@ export function updateRoutesIndex(content, { routeSlug, isNewRouteFile, endpoint
 /* 5. Update public/data.js                                            */
 /* ------------------------------------------------------------------ */
 
-const ACCENT_TAGS_HINT = "pilih 2 huruf singkatan unik, mis. 'SC' buat Soundcloud";
-
 export function updatePublicData(content, { mode, categoryId, newCategory, endpointObj }) {
   let out = content;
 
@@ -349,7 +369,7 @@ export function updatePublicData(content, { mode, categoryId, newCategory, endpo
     `    endpoints: [`,
     endpointObjToJs(endpointObj, 6),
     `    ]`,
-    `  }`
+    `  }`,
   ].join("\n");
 
   out = insertArrayEntry(out, openIdx, closeIdx, categoryStr, "");

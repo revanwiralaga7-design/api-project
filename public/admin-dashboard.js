@@ -1,6 +1,15 @@
 (async function () {
   "use strict";
-  const { $, adminFetch, escapeHtml, renderMessages, renderFiles, renderNav, guardAdminAccess, methodBadgeClass, tierBadgeClass } = window.AdminShared;
+  const {
+    $,
+    adminFetch,
+    escapeHtml,
+    renderMessages,
+    renderFiles,
+    renderNav,
+    guardAdminAccess,
+    methodBadgeClass,
+  } = window.AdminShared;
   if (!(await guardAdminAccess())) return;
   renderNav("dashboard");
 
@@ -14,7 +23,7 @@
       $("statServer").textContent = ok ? "ONLINE" : `ERROR ${res.status}`;
       $("statServer").style.color = ok ? "var(--green)" : "var(--red)";
       $("statServerSub").textContent = ok ? "merespons normal" : "cek log server";
-    } catch (e) {
+    } catch {
       $("statServer").textContent = "OFFLINE";
       $("statServer").style.color = "var(--red)";
       $("statServerSub").textContent = "gak bisa dihubungi";
@@ -52,9 +61,14 @@
       const clients = json.result.clients || [];
       $("statClients").textContent = clients.length;
       const byTier = {};
-      clients.forEach((c) => { byTier[c.tier] = (byTier[c.tier] || 0) + 1; });
-      $("statClientsSub").textContent = Object.entries(byTier).map(([t, n]) => `${n} ${t}`).join(" · ") || "belum ada client";
-    } catch (e) {
+      clients.forEach((c) => {
+        byTier[c.tier] = (byTier[c.tier] || 0) + 1;
+      });
+      $("statClientsSub").textContent =
+        Object.entries(byTier)
+          .map(([t, n]) => `${n} ${t}`)
+          .join(" · ") || "belum ada client";
+    } catch {
       $("statClientsSub").textContent = "gagal memuat";
     }
   }
@@ -72,9 +86,13 @@
       (byCategory[key] = byCategory[key] || []).push(ep);
     });
 
-    const rows = Object.entries(byCategory).map(([label, eps]) => `
+    const rows = Object.entries(byCategory)
+      .map(
+        ([label, eps]) => `
       <tr><td colspan="4" class="cat-group-label">${escapeHtml(label)} <span style="color:var(--muted-2);">(${eps.length})</span></td></tr>
-      ${eps.map((ep) => `
+      ${eps
+        .map(
+          (ep) => `
         <tr>
           <td><span class="badge ${methodBadgeClass(ep.method)}">${escapeHtml(ep.method)}</span></td>
           <td><code>${escapeHtml(ep.path)}</code><div class="hint" style="margin:2px 0 0;">${escapeHtml(ep.name)}</div></td>
@@ -84,26 +102,42 @@
             <button type="button" class="icon-btn danger" data-path="${escapeHtml(ep.path)}" data-method="${escapeHtml(ep.method)}" data-name="${escapeHtml(ep.name)}">Hapus</button>
           </td>
         </tr>
-      `).join("")}
-    `).join("");
+      `
+        )
+        .join("")}
+    `
+      )
+      .join("");
 
     wrap.innerHTML = `<div class="table-scroll"><table class="dtable"><thead><tr><th>Method</th><th>Path</th><th>Kategori</th><th>Aksi</th></tr></thead><tbody>${rows}</tbody></table></div>`;
 
     wrap.querySelectorAll("button.icon-btn.danger").forEach((btn) => {
-      btn.addEventListener("click", () => openDeleteModal(btn.dataset.path, btn.dataset.method, btn.dataset.name));
+      btn.addEventListener("click", () =>
+        openDeleteModal(btn.dataset.path, btn.dataset.method, btn.dataset.name)
+      );
     });
   }
 
   $("epFilter").addEventListener("input", (e) => {
     const q = e.target.value.trim().toLowerCase();
-    if (!q) { renderTable(allEndpoints); return; }
-    renderTable(allEndpoints.filter((ep) =>
-      ep.name.toLowerCase().includes(q) || ep.path.toLowerCase().includes(q) || (ep.categoryLabel || "").toLowerCase().includes(q)
-    ));
+    if (!q) {
+      renderTable(allEndpoints);
+      return;
+    }
+    renderTable(
+      allEndpoints.filter(
+        (ep) =>
+          ep.name.toLowerCase().includes(q) ||
+          ep.path.toLowerCase().includes(q) ||
+          (ep.categoryLabel || "").toLowerCase().includes(q)
+      )
+    );
   });
 
   /* ---------------- Modal hapus endpoint ---------------- */
-  function closeModal() { $("deleteModalMount").innerHTML = ""; }
+  function closeModal() {
+    $("deleteModalMount").innerHTML = "";
+  }
 
   function openDeleteModal(path, method, name) {
     $("deleteModalMount").innerHTML = `
@@ -122,7 +156,9 @@
         </div>
       </div>
     `;
-    $("delBackdrop").addEventListener("click", (e) => { if (e.target.id === "delBackdrop") closeModal(); });
+    $("delBackdrop").addEventListener("click", (e) => {
+      if (e.target.id === "delBackdrop") closeModal();
+    });
     $("delModalCancelBtn").addEventListener("click", closeModal);
 
     const payload = { path, method };
@@ -135,7 +171,7 @@
         const res = await adminFetch("/api/admin/delete/preview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
         const json = await res.json();
         if (!json.status) {
@@ -160,16 +196,22 @@
         const res = await adminFetch("/api/admin/delete/apply", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
         const json = await res.json();
         if (!json.status) {
-          resultEl.innerHTML += renderMessages([json.error || "Gagal hapus (semua perubahan sudah di-rollback)"], "err");
+          resultEl.innerHTML += renderMessages(
+            [json.error || "Gagal hapus (semua perubahan sudah di-rollback)"],
+            "err"
+          );
           $("delModalApplyBtn").disabled = false;
           return;
         }
         resultEl.innerHTML += `<div class="msg ok">${escapeHtml(json.result.message)}</div>`;
-        setTimeout(() => { closeModal(); loadEndpoints(); }, 900);
+        setTimeout(() => {
+          closeModal();
+          loadEndpoints();
+        }, 900);
       } catch (e) {
         resultEl.innerHTML += renderMessages(["Request gagal: " + e.message], "err");
         $("delModalApplyBtn").disabled = false;

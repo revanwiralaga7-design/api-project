@@ -1,5 +1,13 @@
-// Dipakai lewat `pm2-runtime start ecosystem.config.cjs` (lihat package.json
-// script "start"). PM2 di sini CUMA berperan sebagai process supervisor
+// Dipakai lewat `npm run start:pm2` (pm2-runtime start ecosystem.config.cjs).
+// PM2 TIDAK lagi ada di dependencies — install global dulu: `npm i -g pm2`.
+// Di Docker/systemd, restart policy container/unit menggantikan peran PM2,
+// cukup `npm start` (node server.js).
+//
+// CATATAN: fitur apply/restart di admin panel keluar via process.exit(0) dan
+// MENGANDALKAN supervisor (PM2 / Docker restart policy / systemd) buat
+// ngidupin lagi. `npm start` polos tanpa supervisor = proses mati beneran.
+//
+// PM2 di sini CUMA berperan sebagai process supervisor
 // (auto-restart kalau proses exit/crash) — watch filesystem SENGAJA
 // dimatikan.
 //
@@ -20,8 +28,8 @@ module.exports = {
       autorestart: true,
       restart_delay: 300,
       env: {
-        NODE_ENV: "production"
-      }
-    }
-  ]
+        NODE_ENV: "production",
+      },
+    },
+  ],
 };

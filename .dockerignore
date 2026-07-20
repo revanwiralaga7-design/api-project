@@ -1,0 +1,16 @@
+node_modules
+data
+coverage
+.git
+.github
+.claude
+.env
+.env.*
+!.env.example
+src/config/clients.json
+*.log
+Dockerfile
+.dockerignore
+README.md
+.vscode
+.idea

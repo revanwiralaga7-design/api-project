@@ -13,7 +13,7 @@ const THEME = {
   bool: "#C678DD",
   nullish: "#7f8ca3",
   symbol: "#ABB2BF",
-  trafficLights: ["#ff5f57", "#febc2e", "#28c840"]
+  trafficLights: ["#ff5f57", "#febc2e", "#28c840"],
 };
 
 const FONT_SIZE = 26;
@@ -33,7 +33,8 @@ export const MAX_LINE_CHARS = 100;
  */
 function tokenizeLine(line) {
   const tokens = [];
-  const re = /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false)\b|\bnull\b|([{}\[\],:])/g;
+  const re =
+    /("(?:\\.|[^"\\])*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false)\b|\bnull\b|([{}[\],:])/g;
   let last = 0;
   let m;
   while ((m = re.exec(line))) {
@@ -75,9 +76,7 @@ export async function renderJsonImage(data, title = "response.json") {
   let allLines = JSON.stringify(data, null, 2).split("\n");
   const dropped = Math.max(0, allLines.length - MAX_LINES);
   if (dropped) allLines = allLines.slice(0, MAX_LINES);
-  const lines = allLines.map((l) =>
-    l.length > MAX_LINE_CHARS ? l.slice(0, MAX_LINE_CHARS - 1) + "…" : l
-  );
+  const lines = allLines.map((l) => (l.length > MAX_LINE_CHARS ? l.slice(0, MAX_LINE_CHARS - 1) + "…" : l));
   if (dropped) lines.push(`… ${dropped} baris lagi (kepotong)`);
 
   // Ukur dulu pakai kanvas kecil biar lebar kartu pas sama baris terpanjang.

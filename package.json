@@ -5,17 +5,23 @@
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "pm2-runtime start ecosystem.config.cjs",
-    "start:plain": "node server.js",
+    "start": "node server.js",
+    "start:pm2": "pm2-runtime start ecosystem.config.cjs",
     "dev": "nodemon server.js",
     "test": "node --test",
+    "test:coverage": "node --test --experimental-test-coverage",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "create-key": "node scripts/create-client-key.js"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@napi-rs/canvas": "^1.0.2",
+    "acorn": "^8.17.0",
     "axios": "^1.18.1",
     "axios-cookiejar-support": "^7.0.0",
     "better-sqlite3": "^12.11.1",
@@ -31,10 +37,14 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
-    "pm2": "^7.0.3",
     "tough-cookie": "^6.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.7.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.9.5"
   }
 }

@@ -3,12 +3,19 @@ import assert from "node:assert/strict";
 import fs from "fs";
 import path from "path";
 
-import { recordHit, getTodayTotal, usageSummary, flushUsage, _resetUsageCache, USAGE_PATH } from "../src/utils/usage.js";
+import {
+  recordHit,
+  getTodayTotal,
+  usageSummary,
+  flushUsage,
+  _resetUsageCache,
+  USAGE_PATH,
+} from "../src/utils/usage.js";
 import { isExpired } from "../src/utils/clients.js";
-import { recordHistory, listHistory, rollbackHistory, deleteHistoryEntry, HISTORY_DIR } from "../src/utils/history.js";
+import { recordHistory, listHistory, rollbackHistory, deleteHistoryEntry } from "../src/utils/history.js";
 import { ROOT } from "../src/utils/scaffold.js";
 import { buildOpenApiSpec } from "../src/utils/health.js";
-import { tailAccessLog, ACCESS_LOG_PATH } from "../src/utils/accessLog.js";
+import { tailAccessLog } from "../src/utils/accessLog.js";
 
 /* ------------------------------------------------------------------ */
 /* usage.js                                                            */
@@ -17,11 +24,19 @@ import { tailAccessLog, ACCESS_LOG_PATH } from "../src/utils/accessLog.js";
 describe("usage analytics", () => {
   beforeEach(() => {
     _resetUsageCache();
-    try { fs.unlinkSync(USAGE_PATH); } catch { /* belum ada */ }
+    try {
+      fs.unlinkSync(USAGE_PATH);
+    } catch {
+      /* belum ada */
+    }
   });
   after(() => {
     _resetUsageCache();
-    try { fs.unlinkSync(USAGE_PATH); } catch { /* biarin */ }
+    try {
+      fs.unlinkSync(USAGE_PATH);
+    } catch {
+      /* biarin */
+    }
   });
 
   test("recordHit + getTodayTotal", () => {
@@ -92,17 +107,29 @@ describe("history + rollback", () => {
   function cleanupEntries() {
     for (const h of listHistory()) {
       if (h.summary.startsWith("[test]")) {
-        try { deleteHistoryEntry(h.id); } catch { /* biarin */ }
+        try {
+          deleteHistoryEntry(h.id);
+        } catch {
+          /* biarin */
+        }
       }
     }
   }
   beforeEach(() => {
     cleanupEntries();
-    try { fs.unlinkSync(TMP_FILE); } catch { /* belum ada */ }
+    try {
+      fs.unlinkSync(TMP_FILE);
+    } catch {
+      /* belum ada */
+    }
   });
   after(() => {
     cleanupEntries();
-    try { fs.unlinkSync(TMP_FILE); } catch { /* biarin */ }
+    try {
+      fs.unlinkSync(TMP_FILE);
+    } catch {
+      /* biarin */
+    }
   });
 
   test("record -> list -> rollback isi lama balik", () => {
@@ -112,7 +139,7 @@ describe("history + rollback", () => {
     const { id } = recordHistory({
       action: "add",
       summary: "[test] ubah file",
-      snapshot: { [TMP_FILE]: "ISI LAMA" }
+      snapshot: { [TMP_FILE]: "ISI LAMA" },
     });
 
     fs.writeFileSync(TMP_FILE, "ISI BARU", "utf8");
@@ -125,7 +152,7 @@ describe("history + rollback", () => {
     const { id } = recordHistory({
       action: "add",
       summary: "[test] file baru",
-      snapshot: { [TMP_FILE]: null }
+      snapshot: { [TMP_FILE]: null },
     });
     fs.mkdirSync(path.dirname(TMP_FILE), { recursive: true });
     fs.writeFileSync(TMP_FILE, "file hasil apply", "utf8");
