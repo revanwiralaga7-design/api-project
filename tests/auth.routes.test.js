@@ -156,11 +156,12 @@ describe("/auth/* (integration, Google & GitHub sengaja dikosongin)", () => {
     assert.equal(fs.existsSync(new URL("../src/config/clients.json", import.meta.url)), clientsExistedBefore);
   });
 
-  test("GET/POST /auth/keys & DELETE /auth/keys/:key tanpa login -> 401 semua", async () => {
+  test("GET/POST /auth/keys, DELETE /auth/keys/:key & GET /auth/usage-series tanpa login -> 401 semua", async () => {
     for (const [method, path] of [
       ["GET", "/auth/keys"],
       ["POST", "/auth/keys"],
       ["DELETE", "/auth/keys/abc123"],
+      ["GET", "/auth/usage-series"],
     ]) {
       const res = await fetch(`${baseUrl}${path}`, { method });
       assert.equal(res.status, 401, `${method} ${path} harus 401 buat anonim`);

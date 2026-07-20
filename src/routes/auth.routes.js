@@ -12,7 +12,7 @@ import {
   deleteOwnKey,
   MAX_KEYS_PER_USER,
 } from "../utils/clients.js";
-import { getTodayTotal, topPathsForKey } from "../utils/usage.js";
+import { getTodayTotal, topPathsForKey, dailySeriesForKey } from "../utils/usage.js";
 import { TIER_MAX } from "../middleware/tierRateLimit.js";
 
 const router = Router();
@@ -228,6 +228,47 @@ router.delete("/keys/:apiKey", requireOAuthUser, (req, res) => {
   } catch (e) {
     res.status(e.message.includes("tidak ditemukan") ? 404 : 400).json({ status: false, error: e.message });
   }
+});
+
+/**
+ * Data panel usage di docs: deret harian + top endpoint + kuota untuk SATU
+ * key milik akun yang login. Dipisah dari route biar bisa ditest langsung
+ * tanpa boot app (pola safeNext di atas).
+ *
+ * Balikin null kalau key gak ketemu DI DAFTAR KEY USER INI — sengaja gak
+ * bedain "key orang lain" vs "key gak ada" biar endpoint ini gak bisa
+ * dipakai ngecek eksistensi key orang.
+ */
+export function buildUsageSeriesPayload(user, query = {}) {
+  const keys = listKeysForUser(user?.provider, user?.id);
+  if (!keys.length) return null;
+  const requested = typeof query.key === "string" && query.key ? query.key : null;
+  const owned = requested
+    ? keys.find((k) => k.apiKey === requested)
+    : keys.find((k) => !k.label) || keys[0];
+  if (!owned) return null;
+  // days di-clamp diam-diam ke 1-30 (retensi usage.json cuma 30 hari),
+  // non-angka -> default 14. Bukan error: query nyeleneh gak perlu 400.
+  const parsed = Number.parseInt(query.days, 10);
+  const days = Number.isFinite(parsed) ? Math.min(30, Math.max(1, parsed)) : 14;
+  return {
+    days: dailySeriesForKey(owned.apiKey, days),
+    topPaths: topPathsForKey(owned.apiKey, days),
+    quota: {
+      daily: owned.dailyQuota || null,
+      hourly: owned.tier === "admin" ? null : (TIER_MAX[owned.tier] ?? TIER_MAX.free),
+      todayUsed: getTodayTotal(owned.apiKey),
+    },
+  };
+}
+
+router.get("/usage-series", requireOAuthUser, (req, res) => {
+  const payload = buildUsageSeriesPayload(req.user, req.query);
+  if (!payload) {
+    return res.status(404).json({ status: false, error: "Key tidak ditemukan di akun ini." });
+  }
+  res.set("Cache-Control", "no-store");
+  res.json({ status: true, result: payload });
 });
 
 export default router;

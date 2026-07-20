@@ -1,10 +1,13 @@
 // Test dailySeriesForKey: deret harian SATU key buat grafik usage di docs
 // (self-service) — beda dari dailySeries yang agregat semua client.
+import "./helpers/forceEmptyOauthEnv.js";
 import { test, describe, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
 import { USAGE_PATH, recordHit, dailySeriesForKey, _resetUsageCache } from "../src/utils/usage.js";
+import { CLIENTS_PATH } from "../src/utils/clients.js";
+import { buildUsageSeriesPayload } from "../src/routes/auth.routes.js";
 
 const USAGE_EXISTED = fs.existsSync(USAGE_PATH);
 const USAGE_CONTENT = USAGE_EXISTED ? fs.readFileSync(USAGE_PATH, "utf8") : null;
@@ -13,6 +16,14 @@ after(() => {
   if (USAGE_EXISTED) fs.writeFileSync(USAGE_PATH, USAGE_CONTENT, "utf8");
   else fs.rmSync(USAGE_PATH, { force: true });
   _resetUsageCache();
+});
+
+const CLIENTS_EXISTED = fs.existsSync(CLIENTS_PATH);
+const CLIENTS_CONTENT = CLIENTS_EXISTED ? fs.readFileSync(CLIENTS_PATH, "utf8") : null;
+
+after(() => {
+  if (CLIENTS_EXISTED) fs.writeFileSync(CLIENTS_PATH, CLIENTS_CONTENT, "utf8");
+  else fs.rmSync(CLIENTS_PATH, { force: true });
 });
 
 describe("dailySeriesForKey (deret harian satu key)", () => {
@@ -65,5 +76,88 @@ describe("dailySeriesForKey (deret harian satu key)", () => {
 
   test("default days = 14", () => {
     assert.equal(dailySeriesForKey("key-a").length, 14);
+  });
+});
+
+describe("buildUsageSeriesPayload (logika /auth/usage-series)", () => {
+  const USER = { provider: "google", id: "111" };
+
+  beforeEach(() => {
+    _resetUsageCache();
+    fs.rmSync(USAGE_PATH, { force: true });
+    fs.writeFileSync(
+      CLIENTS_PATH,
+      JSON.stringify(
+        {
+          "key-primary": {
+            name: "Budi",
+            tier: "premium",
+            provider: "google",
+            providerId: "111",
+            dailyQuota: 500,
+          },
+          "key-bot": {
+            name: "Budi",
+            tier: "premium",
+            provider: "google",
+            providerId: "111",
+            label: "bot-discord",
+          },
+          "key-orang-lain": { name: "Ani", tier: "free", provider: "github", providerId: "999" },
+        },
+        null,
+        2
+      ),
+      "utf8"
+    );
+  });
+
+  test("tanpa ?key -> pakai key primary (yang tanpa label)", () => {
+    recordHit({ clientKey: "key-primary", tier: "premium", path: "/api/yt", status: 200 });
+    const p = buildUsageSeriesPayload(USER, {});
+    assert.ok(p, "payload harus ada");
+    assert.equal(p.days.length, 14, "default 14 hari");
+    assert.equal(p.days.at(-1).total, 1);
+    assert.equal(p.quota.daily, 500);
+    assert.equal(p.quota.todayUsed, 1);
+    assert.ok(p.quota.hourly > 0, "premium punya limit per jam");
+  });
+
+  test("?key milik sendiri (key berlabel) -> dipakai", () => {
+    recordHit({ clientKey: "key-bot", tier: "premium", path: "/api/anime", status: 200 });
+    const p = buildUsageSeriesPayload(USER, { key: "key-bot" });
+    assert.equal(p.days.at(-1).total, 1);
+    assert.equal(p.quota.daily, null, "key bot gak punya dailyQuota");
+  });
+
+  test("?key milik user LAIN -> null (route bakal 404), bukan data orang", () => {
+    assert.equal(buildUsageSeriesPayload(USER, { key: "key-orang-lain" }), null);
+  });
+
+  test("?key gak ada di sistem -> null juga (pesan gak bocorin eksistensi)", () => {
+    assert.equal(buildUsageSeriesPayload(USER, { key: "key-ngasal" }), null);
+  });
+
+  test("user tanpa key sama sekali -> null", () => {
+    assert.equal(buildUsageSeriesPayload({ provider: "google", id: "777" }, {}), null);
+  });
+
+  test("days di-clamp diam-diam: 999 -> 30, 0 -> 1, 'abc' -> default 14", () => {
+    assert.equal(buildUsageSeriesPayload(USER, { days: "999" }).days.length, 30);
+    assert.equal(buildUsageSeriesPayload(USER, { days: "0" }).days.length, 1);
+    assert.equal(buildUsageSeriesPayload(USER, { days: "abc" }).days.length, 14);
+  });
+
+  test("tier admin -> quota.hourly null (unlimited)", () => {
+    fs.writeFileSync(
+      CLIENTS_PATH,
+      JSON.stringify(
+        { "key-adm": { name: "Root", tier: "admin", provider: "google", providerId: "111" } },
+        null,
+        2
+      ),
+      "utf8"
+    );
+    assert.equal(buildUsageSeriesPayload(USER, {}).quota.hourly, null);
   });
 });
