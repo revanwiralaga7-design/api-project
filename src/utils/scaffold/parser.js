@@ -1,9 +1,39 @@
 // Parser kode class yang di-paste user (extractClassInfo, extractClassMethods,
-// parseMethodParams, dst) + dependency checker. Dipisah dari scaffold.js
-// monolitik — logikanya tidak berubah.
+// parseMethodParams, dst) + dependency checker.
+//
+// Sejak migrasi ke AST (acorn), semua analisis struktur (deteksi class,
+// method, parameter, pemanggilan internal) dilakukan lewat parse JS beneran —
+// bukan regex + brace matching manual. Ini memperbaiki sekaligus tiga bug
+// lama: brace di dalam template literal/komentar yang merusak deteksi
+// method, class-field arrow dengan paren bersarang di default value yang
+// tidak terdeteksi, dan import multiline yang lolos dari dependency checker.
+// API publik dan bentuk hasil (params/names/kind/required/dst) sengaja
+// dipertahankan persis — konsumen (planBuilders, routes, UI admin) tidak
+// perlu berubah.
 import fs from "fs";
 import path from "path";
-import { ROOT, findMatchingClose, escapeRegex } from "./core.js";
+import { execFileSync } from "child_process";
+import * as acorn from "acorn";
+import { ROOT } from "./core.js";
+
+const ACORN_OPTS = { ecmaVersion: "latest", sourceType: "module" };
+
+/** Traversal AST generik sederhana (cukup buat kebutuhan di file ini). */
+function walkAst(node, visit) {
+  if (!node || typeof node.type !== "string") return;
+  visit(node);
+  for (const key of Object.keys(node)) {
+    if (key === "type") continue;
+    const value = node[key];
+    if (Array.isArray(value)) {
+      for (const child of value) {
+        if (child && typeof child.type === "string") walkAst(child, visit);
+      }
+    } else if (value && typeof value.type === "string") {
+      walkAst(value, visit);
+    }
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* 1. Parse kode class yang di-paste user                              */
@@ -11,46 +41,74 @@ import { ROOT, findMatchingClose, escapeRegex } from "./core.js";
 
 /**
  * Ambil hanya blok `class Xxx { ... }` dari kode mentah yang di-paste,
- * plus baris `import ...` di atasnya. Buang sisanya (mis. CLI runner
- * `async function main(){...}` / `main();`).
+ * plus statement `import ...` di atasnya (termasuk import MULTILINE,
+ * yang dulu lolos dari deteksi karena regex per-baris). Buang sisanya
+ * (mis. CLI runner `async function main(){...}` / `main();`).
  */
 export function extractClassInfo(rawCode) {
   const code = String(rawCode || "").replace(/\r\n/g, "\n");
 
-  const classMatch = code.match(/(export\s+default\s+)?class\s+([A-Za-z_$][\w$]*)/);
-  if (!classMatch) {
+  let ast;
+  try {
+    ast = acorn.parse(code, ACORN_OPTS);
+  } catch (e) {
+    throw new Error(`Kode yang di-paste bukan JavaScript valid: ${e.message}`, { cause: e });
+  }
+
+  // Cari class TOP-LEVEL pertama (deklarasi biasa atau export default).
+  let classNode = null;
+  let sliceStart = -1; // awal teks classBlock (ikut "export default " kalau ada)
+  for (const stmt of ast.body) {
+    if (stmt.type === "ClassDeclaration") {
+      classNode = stmt;
+      sliceStart = stmt.start;
+      break;
+    }
+    if (stmt.type === "ExportDefaultDeclaration" && stmt.declaration.type === "ClassDeclaration") {
+      classNode = stmt.declaration;
+      sliceStart = stmt.start;
+      break;
+    }
+  }
+  if (!classNode) {
     throw new Error("Tidak ketemu deklarasi 'class' di kode yang di-paste.");
   }
-  const hasInlineExport = !!classMatch[1];
-  const className = classMatch[2];
-  const classKeywordIndex = code.indexOf(classMatch[0]);
+  if (!classNode.id) {
+    throw new Error("Class-nya harus punya nama (mis. `class TiktokDownloader { ... }`).");
+  }
 
-  const braceOpenIndex = code.indexOf("{", classKeywordIndex);
-  if (braceOpenIndex === -1) throw new Error("Class tidak punya body '{ ... }'.");
-  const braceCloseIndex = findMatchingClose(code, braceOpenIndex, "{", "}");
+  const hasInlineExport = sliceStart !== classNode.start;
+  const className = classNode.id.name;
+  const classBlock = code.slice(sliceStart, classNode.end);
 
-  const classBlock = code.slice(classKeywordIndex, braceCloseIndex + 1);
+  // Import: ambil SEMUA statement import sebelum class (single/multiline
+  // sama saja — yang dipotong node AST utuh, bukan per baris).
+  const importRanges = [];
+  const importLines = [];
+  for (const stmt of ast.body) {
+    if (stmt.type !== "ImportDeclaration" || stmt.start >= sliceStart) continue;
+    importRanges.push([stmt.start, stmt.end]);
+    importLines.push(code.slice(stmt.start, stmt.end).trim());
+  }
 
-  const beforeClass = code.slice(0, classKeywordIndex);
-
-  const importLines = Array.from(
-    beforeClass.matchAll(/^\s*import\s.+;\s*$/gm)
-  ).map((m) => m[0].trim());
-
-  // Apapun yang ada SEBELUM class selain baris import (const/let/var,
-  // helper function, IIFE decode base64, dsb) jangan dibuang — class
-  // body-nya bisa aja bergantung ke situ (mis. setup watermark/konstanta).
-  // Cuma buang baris import-nya (udah ditampung terpisah di atas).
-  const preludeCode = beforeClass
-    .replace(/^\s*import\s.+;\s*$/gm, "")
-    .trim();
+  // Apapun yang ada SEBELUM class selain import (const/let/var, helper
+  // function, IIFE decode base64, dsb) jangan dibuang — class body-nya
+  // bisa aja bergantung ke situ (mis. setup watermark/konstanta).
+  let preludeCode = "";
+  let cursor = 0;
+  for (const [start, end] of importRanges) {
+    preludeCode += code.slice(cursor, start);
+    cursor = end;
+  }
+  preludeCode += code.slice(cursor, sliceStart);
+  preludeCode = preludeCode.trim();
 
   return {
     className,
     classBlock,
     hasInlineExport,
     importLines: [...new Set(importLines)],
-    preludeCode
+    preludeCode,
   };
 }
 
@@ -64,36 +122,65 @@ export function checkMissingDeps(importLines) {
   const known = new Set([
     ...Object.keys(pkg.dependencies || {}),
     ...Object.keys(pkg.devDependencies || {}),
-    ...Object.keys(pkg.optionalDependencies || {})
+    ...Object.keys(pkg.optionalDependencies || {}),
   ]);
   const warnings = [];
   for (const line of importLines) {
-    const m = line.match(/from\s+["']([^"']+)["']/);
+    // `from "pkg"` (import biasa) ATAU `import "pkg"` (side-effect import).
+    const m = line.match(/from\s+["']([^"']+)["']/) || line.match(/^import\s+["']([^"']+)["']/);
     if (!m) continue;
     const spec = m[1];
-    if (spec.startsWith(".")) continue; // relative import, biarin
-    const pkgName = spec.startsWith("@")
-      ? spec.split("/").slice(0, 2).join("/")
-      : spec.split("/")[0];
+    if (spec.startsWith(".") || spec.startsWith("node:")) continue; // relative / builtin, biarin
+    const pkgName = spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : spec.split("/")[0];
     if (!known.has(pkgName)) warnings.push(pkgName);
   }
   return [...new Set(warnings)];
 }
 
 /**
- * Tambahin package yang belum ada ke package.json (dependencies),
- * versi dikasih "latest" (valid ditulis di package.json, npm bakal
- * resolve ke versi terbaru pas `npm install` dijalanin). Dipakai kalau
- * user centang opsi "auto update package.json" pas Apply.
+ * Resolve versi terbaru sebuah package lewat `npm view` (di-cache
+ * per-proses biar preview + apply gak nge-hit registry dua kali).
+ * Balikin null kalau gagal (offline / package gak ada) — caller yang
+ * menentukan fallback-nya.
+ */
+const versionCache = new Map();
+export function resolveLatestVersion(pkgName) {
+  if (versionCache.has(pkgName)) return versionCache.get(pkgName);
+  let version = null;
+  try {
+    const out = execFileSync("npm", ["view", pkgName, "version"], {
+      encoding: "utf8",
+      timeout: 10_000,
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim();
+    if (/^\d+\.\d+\.\d+/.test(out)) version = out;
+  } catch {
+    /* offline / package gak ketemu — fallback ke "latest" di caller */
+  }
+  versionCache.set(pkgName, version);
+  return version;
+}
+
+/**
+ * Tambahin package yang belum ada ke package.json (dependencies).
+ * Versinya di-resolve beneran ke `^x.y.z` lewat `npm view` — BUKAN string
+ * "latest" seperti dulu, yang nyangkut permanen di package.json dan bikin
+ * `npm install` berikutnya diam-diam bisa naik major version. Kalau
+ * resolve gagal (offline), baru fallback ke "latest".
  * Return: { content, added: [nama-nama yang beneran ditambahin] }.
  */
-export function addDepsToPackageJson(pkgJsonContent, depNames) {
+export function addDepsToPackageJson(
+  pkgJsonContent,
+  depNames,
+  { resolveVersion = resolveLatestVersion } = {}
+) {
   const pkg = JSON.parse(pkgJsonContent);
   pkg.dependencies = pkg.dependencies || {};
   const added = [];
   for (const name of depNames) {
     if (!pkg.dependencies[name]) {
-      pkg.dependencies[name] = "latest";
+      const version = resolveVersion(name);
+      pkg.dependencies[name] = version ? `^${version}` : "latest";
       added.push(name);
     }
   }
@@ -103,6 +190,25 @@ export function addDepsToPackageJson(pkgJsonContent, depNames) {
   return { content: JSON.stringify(pkg, null, 2) + "\n", added };
 }
 
+/* ------------------------------------------------------------------ */
+/* 2. Validasi sintaks file hasil generate                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Cek satu konten file hasil generate valid secara sintaks JS atau
+ * enggak. Balikin null kalau valid, atau pesan error kalau tidak —
+ * dipakai plan builder buat menggagalkan preview/apply DI AWAL (error
+ * 400 yang jelas) daripada server mati waktu restart nge-import file
+ * rusak (rollback-on-error tetap ada, tapi mencegah lebih murah).
+ */
+export function checkJsSyntax(content) {
+  try {
+    acorn.parse(content, ACORN_OPTS);
+    return null;
+  } catch (e) {
+    return e.message;
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* 2b. Analisis method & constructor di dalam class (validasi + auto-  */
@@ -111,13 +217,9 @@ export function addDepsToPackageJson(pkgJsonContent, depNames) {
 
 /**
  * Split string di top-level comma aja (gak ke-split kalau lagi di
- * dalam (), [], {}, <> (generic, heuristik), atau di dalam string
- * literal / template literal / comment. Dipakai buat parsing daftar
- * parameter method, mis. `a, b = {x: 1}, ...rest`.
- *
- * Catatan heuristik "<>": "<" cuma dihitung "buka" kalau langsung
- * diikuti huruf besar (pola umum generic, mis. `Array<T>`), supaya
- * operator perbandingan biasa (`a < b`) gak ketutup dianggap depth.
+ * dalam (), [], {}, string literal, template literal, atau comment).
+ * Dulu ini tulang punggung parser parameter; sekarang parameter dibaca
+ * dari AST, tapi fungsi ini tetap diekspor buat konsumen lama.
  */
 export function splitTopLevelCommas(str) {
   const parts = [];
@@ -139,18 +241,38 @@ export function splitTopLevelCommas(str) {
     }
     if (inBlockComment) {
       current += ch;
-      if (ch === "*" && next === "/") { current += next; i++; inBlockComment = false; }
+      if (ch === "*" && next === "/") {
+        current += next;
+        i++;
+        inBlockComment = false;
+      }
       continue;
     }
     if (quote) {
       current += ch;
-      if (ch === "\\") { current += next; i++; continue; }
+      if (ch === "\\") {
+        current += next;
+        i++;
+        continue;
+      }
       if (ch === quote) quote = null;
       continue;
     }
-    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; current += ch; continue; }
-    if (ch === "/" && next === "/") { inLineComment = true; current += ch; continue; }
-    if (ch === "/" && next === "*") { inBlockComment = true; current += ch; continue; }
+    if (ch === '"' || ch === "'" || ch === "`") {
+      quote = ch;
+      current += ch;
+      continue;
+    }
+    if (ch === "/" && next === "/") {
+      inLineComment = true;
+      current += ch;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      inBlockComment = true;
+      current += ch;
+      continue;
+    }
 
     if ("([{".includes(ch)) depth++;
     if (")]}".includes(ch)) depth--;
@@ -167,51 +289,6 @@ export function splitTopLevelCommas(str) {
   if (current.trim()) parts.push(current);
   return parts.map((p) => p.trim()).filter(Boolean);
 }
-
-/**
- * Cari index karakter target (":" atau "=") di TOP-LEVEL segmen aja
- * (di luar (), {}, [], string literal). Dipakai buat misahin
- * "key: value" (alias) atau "name = default" (default value) tanpa
- * ketipu sama karakter yang sama di dalam nested value (mis. ":" di
- * dalam ternary yang jadi default value, atau "=" di dalam "===").
- */
-function findTopLevelChar(str, target) {
-  let depth = 0;
-  let quote = null;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    if (quote) {
-      if (ch === "\\") { i++; continue; }
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; continue; }
-    if ("([{".includes(ch)) { depth++; continue; }
-    if (")]}".includes(ch)) { depth--; continue; }
-    if (depth !== 0) continue;
-
-    if (target === ":" && ch === ":") return i;
-    if (target === "=" && ch === "=") {
-      const prev = str[i - 1];
-      const next = str[i + 1];
-      // Skip operator gabungan: "==", "===", "=>", "<=", ">=", "!="
-      if (next === "=" || prev === "=" || prev === "<" || prev === ">" || prev === "!") continue;
-      return i;
-    }
-  }
-  return -1;
-}
-
-/**
- * Misahin "name" dan "= defaultValue" (kalau ada) di top-level.
- */
-function splitNameDefault(str) {
-  const idx = findTopLevelChar(str, "=");
-  if (idx === -1) return { name: str.trim(), defaultValue: null };
-  return { name: str.slice(0, idx).trim(), defaultValue: str.slice(idx + 1).trim() };
-}
-
-const IDENTIFIER_RE = /^[A-Za-z_$][\w$]*$/;
 
 /**
  * Error khusus buat pola parameter yang KETAHUAN tapi belum didukung
@@ -233,110 +310,152 @@ export class ParserUnsupportedError extends Error {
   }
 }
 
-function assertIdentifier(name, ctx, reason) {
-  if (!IDENTIFIER_RE.test(name || "")) {
-    throw new ParserUnsupportedError(reason, ctx);
-  }
-}
-
 /**
- * Parse 1 segmen top-level di dalam object pattern `{ ... }`, balikin
- * metadata kaya (bukan cuma nama doang):
- *   "url"                 -> { kind: "property", name: "url", source: "url", required: true, hasDefault: false }
- *   "limit = 10"          -> { kind: "property", name: "limit", source: "limit", required: false, hasDefault: true, defaultValue: "10" }
- *   "url: videoUrl"       -> { kind: "alias", source: "url", target: "videoUrl", required: true, hasDefault: false }
- *   "url: videoUrl = ''"  -> { kind: "alias", source: "url", target: "videoUrl", required: false, hasDefault: true, defaultValue: "''" }
- *   "...rest"             -> { kind: "rest", name: "rest" }
- * Lempar ParserUnsupportedError kalau ketemu nested object, array
- * destructuring (lewat alias), atau computed property key.
+ * Terjemahkan 1 node property di dalam ObjectPattern jadi metadata kaya
+ * (kind: property/alias/rest + required/hasDefault/defaultValue).
+ * `src` = source text tempat node ini di-parse (buat slice defaultValue
+ * persis seperti ditulis user).
  */
-function parseObjectPatternSegment(segment, ctx) {
-  const trimmed = segment.trim();
-
-  if (trimmed.startsWith("...")) {
-    const name = trimmed.slice(3).trim();
-    assertIdentifier(name, { ...ctx, paramName: trimmed }, `Pola rest parameter tidak dikenali: "${trimmed}".`);
-    return { kind: "rest", name };
-  }
-
-  if (trimmed.startsWith("[")) {
-    throw new ParserUnsupportedError("Computed property destructuring belum didukung.", { ...ctx, paramName: trimmed });
-  }
-
-  const idxEq = findTopLevelChar(trimmed, "=");
-  let idxColon = findTopLevelChar(trimmed, ":");
-  // Kalau ":" ketemu SETELAH "=", itu bukan alias separator — itu bagian
-  // dari default value (mis. ternary `x = a ? b : c`).
-  if (idxColon !== -1 && idxEq !== -1 && idxColon > idxEq) idxColon = -1;
-
-  if (idxColon !== -1) {
-    const source = trimmed.slice(0, idxColon).trim();
-    const valuePart = trimmed.slice(idxColon + 1).trim();
-    assertIdentifier(source, { ...ctx, paramName: source }, `Nama property tidak dikenali: "${source}".`);
-
-    if (valuePart.startsWith("{")) {
-      throw new ParserUnsupportedError("Nested object destructuring belum didukung.", { ...ctx, paramName: source });
+function analyzeObjectPatternProperty(prop, src, ctx) {
+  if (prop.type === "RestElement") {
+    if (prop.argument.type !== "Identifier") {
+      throw new ParserUnsupportedError(
+        `Pola rest parameter tidak dikenali: "${src.slice(prop.start, prop.end)}".`,
+        { ...ctx, paramName: src.slice(prop.start, prop.end) }
+      );
     }
-    if (valuePart.startsWith("[")) {
-      throw new ParserUnsupportedError("Array destructuring belum didukung.", { ...ctx, paramName: source });
-    }
-
-    const { name: target, defaultValue } = splitNameDefault(valuePart);
-    assertIdentifier(target, { ...ctx, paramName: source }, `Nama alias tidak dikenali untuk property "${source}".`);
-
-    return {
-      kind: "alias",
-      source,
-      target,
-      required: defaultValue == null,
-      hasDefault: defaultValue != null,
-      ...(defaultValue != null ? { defaultValue } : {})
-    };
+    return { kind: "rest", name: prop.argument.name };
   }
 
-  const { name, defaultValue } = splitNameDefault(trimmed);
-  assertIdentifier(name, { ...ctx, paramName: trimmed }, `Pola parameter tidak dikenali: "${trimmed}".`);
-
-  return {
-    kind: "property",
-    name,
-    source: name,
-    required: defaultValue == null,
-    hasDefault: defaultValue != null,
-    ...(defaultValue != null ? { defaultValue } : {})
-  };
-}
-
-/**
- * Parse 1 segmen top-level di daftar parameter positional (bukan
- * destructuring object), mis. `a`, `b = 1`, `...rest`.
- */
-function parsePositionalSegment(segment, ctx) {
-  const trimmed = segment.trim();
-
-  if (trimmed.startsWith("...")) {
-    const name = trimmed.slice(3).trim();
-    assertIdentifier(name, { ...ctx, paramName: trimmed }, `Pola rest parameter tidak dikenali: "${trimmed}".`);
-    return { kind: "rest", name };
+  if (prop.computed) {
+    throw new ParserUnsupportedError("Computed property destructuring belum didukung.", {
+      ...ctx,
+      paramName: src.slice(prop.start, prop.end),
+    });
   }
-
-  if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+  if (prop.key.type !== "Identifier") {
     throw new ParserUnsupportedError(
-      "Parameter destructuring campuran (positional + object/array pattern) belum didukung.",
-      { ...ctx, paramName: trimmed }
+      `Nama property tidak dikenali: "${src.slice(prop.key.start, prop.key.end)}".`,
+      {
+        ...ctx,
+        paramName: src.slice(prop.key.start, prop.key.end),
+      }
     );
   }
+  const source = prop.key.name;
 
-  const { name, defaultValue } = splitNameDefault(trimmed);
-  assertIdentifier(name, { ...ctx, paramName: trimmed }, `Pola parameter tidak dikenali: "${trimmed}".`);
+  // value bisa: Identifier (shorthand/alias), AssignmentPattern (default),
+  // ObjectPattern/ArrayPattern (nested — belum didukung).
+  let valueNode = prop.value;
+  let defaultValue = null;
+  if (valueNode.type === "AssignmentPattern") {
+    defaultValue = src.slice(valueNode.right.start, valueNode.right.end);
+    valueNode = valueNode.left;
+  }
+  if (valueNode.type === "ObjectPattern") {
+    throw new ParserUnsupportedError("Nested object destructuring belum didukung.", {
+      ...ctx,
+      paramName: source,
+    });
+  }
+  if (valueNode.type === "ArrayPattern") {
+    throw new ParserUnsupportedError("Array destructuring belum didukung.", { ...ctx, paramName: source });
+  }
+  if (valueNode.type !== "Identifier") {
+    throw new ParserUnsupportedError(`Pola parameter tidak dikenali: "${src.slice(prop.start, prop.end)}".`, {
+      ...ctx,
+      paramName: source,
+    });
+  }
 
+  if (prop.shorthand) {
+    return {
+      kind: "property",
+      name: source,
+      source,
+      required: defaultValue == null,
+      hasDefault: defaultValue != null,
+      ...(defaultValue != null ? { defaultValue } : {}),
+    };
+  }
   return {
-    kind: "param",
-    name,
+    kind: "alias",
+    source,
+    target: valueNode.name,
     required: defaultValue == null,
     hasDefault: defaultValue != null,
-    ...(defaultValue != null ? { defaultValue } : {})
+    ...(defaultValue != null ? { defaultValue } : {}),
   };
+}
+
+/**
+ * Terjemahkan daftar node parameter fungsi (dari AST) jadi bentuk hasil
+ * parseMethodParams: { style, optional, params, names }. Dipakai bareng
+ * oleh parseMethodParams (input string) dan extractClassMethods (node
+ * langsung dari class) supaya SATU jalur kode, gak bisa divergen.
+ */
+function analyzeParamNodes(paramNodes, src, ctx) {
+  if (!paramNodes.length) return { style: "none", optional: false, params: [], names: [] };
+
+  // Style "object": PERSIS satu parameter berupa object destructuring
+  // (boleh dibungkus default `= {}` -> optional).
+  const single = paramNodes.length === 1 ? paramNodes[0] : null;
+  const singleUnwrapped = single && single.type === "AssignmentPattern" ? single.left : single;
+  if (singleUnwrapped && singleUnwrapped.type === "ObjectPattern") {
+    const optional = single.type === "AssignmentPattern";
+    const params = singleUnwrapped.properties.map((p) => analyzeObjectPatternProperty(p, src, ctx));
+    const names = params.map((p) => (p.kind === "rest" ? p.name : p.source));
+    return { style: "object", optional, params, names };
+  }
+
+  // Sisanya harus positional murni: Identifier / default / rest.
+  const params = paramNodes.map((node) => {
+    if (node.type === "RestElement") {
+      if (node.argument.type !== "Identifier") {
+        throw new ParserUnsupportedError(
+          `Pola rest parameter tidak dikenali: "${src.slice(node.start, node.end)}".`,
+          { ...ctx, paramName: src.slice(node.start, node.end) }
+        );
+      }
+      return { kind: "rest", name: node.argument.name };
+    }
+    let defaultValue = null;
+    let target = node;
+    if (node.type === "AssignmentPattern") {
+      defaultValue = src.slice(node.right.start, node.right.end);
+      target = node.left;
+    }
+    if (target.type === "ObjectPattern") {
+      throw new ParserUnsupportedError(
+        "Parameter destructuring campuran (positional + object/array pattern) belum didukung.",
+        { ...ctx, paramName: src.slice(node.start, node.end) }
+      );
+    }
+    if (target.type === "ArrayPattern") {
+      throw new ParserUnsupportedError("Array destructuring belum didukung.", {
+        ...ctx,
+        paramName: src.slice(node.start, node.end),
+      });
+    }
+    if (target.type !== "Identifier") {
+      throw new ParserUnsupportedError(
+        `Pola parameter tidak dikenali: "${src.slice(node.start, node.end)}".`,
+        {
+          ...ctx,
+          paramName: src.slice(node.start, node.end),
+        }
+      );
+    }
+    return {
+      kind: "param",
+      name: target.name,
+      required: defaultValue == null,
+      hasDefault: defaultValue != null,
+      ...(defaultValue != null ? { defaultValue } : {}),
+    };
+  });
+  const names = params.map((p) => p.name);
+  return { style: "positional", optional: false, params, names };
 }
 
 /**
@@ -362,37 +481,27 @@ function parsePositionalSegment(segment, ctx) {
  *
  * Lempar ParserUnsupportedError (bukan nebak/silent-fail) buat pola
  * yang belum didukung: nested object, array destructuring, computed
- * property. `ctx` opsional `{ methodName }` dipakai buat lokasi error.
+ * property, atau teks yang bukan daftar parameter valid sama sekali.
+ * `ctx` opsional `{ methodName }` dipakai buat lokasi error.
  */
 export function parseMethodParams(paramsRaw, ctx = {}) {
   const trimmed = String(paramsRaw || "").trim();
   if (!trimmed) return { style: "none", optional: false, params: [], names: [] };
 
-  if (trimmed.startsWith("{")) {
-    const closeIdx = findMatchingClose(trimmed, 0, "{", "}");
-    const inner = trimmed.slice(1, closeIdx);
-    const remainder = trimmed.slice(closeIdx + 1).trim();
-
-    let optional = false;
-    if (remainder) {
-      if (!remainder.startsWith("=")) {
-        throw new ParserUnsupportedError(`Pola parameter setelah object destructuring tidak dikenali: "${remainder}".`, ctx);
-      }
-      optional = true;
-    }
-
-    const params = splitTopLevelCommas(inner).map((seg) => parseObjectPatternSegment(seg, ctx));
-    const names = params.map((p) => (p.kind === "rest" ? p.name : p.source));
-    return { style: "object", optional, params, names };
+  // Bungkus jadi arrow function biar acorn yang menilai valid/enggaknya —
+  // offset node tetap sejajar dengan `src` karena teks aslinya utuh di dalam.
+  const src = `(${trimmed}) => {}`;
+  let arrowNode;
+  try {
+    const ast = acorn.parse(src, ACORN_OPTS);
+    arrowNode = ast.body[0].expression;
+  } catch {
+    throw new ParserUnsupportedError(`Pola parameter tidak dikenali: "${trimmed}".`, ctx);
   }
-
-  if (trimmed.startsWith("[")) {
-    throw new ParserUnsupportedError("Array destructuring belum didukung.", ctx);
+  if (!arrowNode || arrowNode.type !== "ArrowFunctionExpression") {
+    throw new ParserUnsupportedError(`Pola parameter tidak dikenali: "${trimmed}".`, ctx);
   }
-
-  const params = splitTopLevelCommas(trimmed).map((seg) => parsePositionalSegment(seg, ctx));
-  const names = params.map((p) => p.name);
-  return { style: "positional", optional: false, params, names };
+  return analyzeParamNodes(arrowNode.params, src, ctx);
 }
 
 /**
@@ -414,79 +523,89 @@ export function validateParsedMethodParams(parsed) {
   return { ok: true, lines, summary: "Parser OK" };
 }
 
+/** Parse classBlock (boleh berawalan "export default ") jadi node class AST. */
+function parseClassBlock(classBlock) {
+  const src = String(classBlock || "");
+  let ast;
+  try {
+    ast = acorn.parse(src, ACORN_OPTS);
+  } catch (e) {
+    throw new Error(`Kode class bukan JavaScript valid: ${e.message}`, { cause: e });
+  }
+  for (const stmt of ast.body) {
+    if (stmt.type === "ClassDeclaration") return { classNode: stmt, src };
+    if (stmt.type === "ExportDefaultDeclaration" && stmt.declaration.type === "ClassDeclaration") {
+      return { classNode: stmt.declaration, src };
+    }
+  }
+  throw new Error("Tidak ketemu deklarasi 'class' di kode yang di-paste.");
+}
+
+/** Nama member class dari node key ("#privat" buat PrivateIdentifier). */
+function memberName(keyNode) {
+  if (keyNode.type === "Identifier") return keyNode.name;
+  if (keyNode.type === "PrivateIdentifier") return `#${keyNode.name}`;
+  return null; // string literal / computed key — di-skip (gak bisa jadi endpoint)
+}
+
 /**
- * Scan isi body class (level teratas doang, bukan nested function di
- * dalam method) buat nemuin semua method (termasuk constructor) beserta
+ * Scan body class (level teratas doang, bukan nested function di dalam
+ * method) buat nemuin semua method (termasuk constructor) beserta
  * parameternya. Dipakai buat:
  *  - validasi "method X ada gak di class ini" sebelum generate route
  *  - auto-isi daftar parameter (gak perlu nebak manual)
  *  - deteksi constructor butuh argumen atau enggak
  *
  * Mendukung method biasa (`async foo() {}`, `static foo() {}`,
- * `get/set foo() {}`) maupun class-field arrow function
- * (`foo = async (a, b) => {}`).
+ * `get/set foo() {}`, generator) maupun class-field arrow function
+ * (`foo = async (a, b) => {}` — termasuk default value berisi paren
+ * bersarang dan arrow tanpa body `{}`, yang dulu gak kedetect).
  */
 export function extractClassMethods(classBlock) {
-  const bodyOpen = classBlock.indexOf("{");
-  const body = classBlock.slice(bodyOpen + 1, -1); // sampai sebelum '}' penutup class
+  const { classNode, src } = parseClassBlock(classBlock);
 
   const methods = [];
-  let depth = 0;
-  let i = 0;
-
-  while (i < body.length) {
-    const ch = body[i];
-    if (ch === "{") { depth++; i++; continue; }
-    if (ch === "}") { depth--; i++; continue; }
-
-    if (depth === 0) {
-      const rest = body.slice(i);
-
-      // Pola 1: method biasa -> (static)? (async)? (get|set)? name(
-      const methodMatch = rest.match(/^(static\s+)?(async\s+)?(\*\s*)?(get\s+|set\s+)?(#?[A-Za-z_$][\w$]*)\s*\(/);
-      if (methodMatch) {
-        const name = methodMatch[5];
-        const parenStart = i + methodMatch[0].length - 1;
-        const parenClose = findMatchingClose(body, parenStart, "(", ")");
-        let j = parenClose + 1;
-        while (/\s/.test(body[j])) j++;
-        if (body[j] === "{") {
-          const paramsRaw = body.slice(parenStart + 1, parenClose).trim();
-          methods.push({
-            name,
-            isConstructor: name === "constructor",
-            isStatic: !!methodMatch[1],
-            isAsync: !!methodMatch[2],
-            isArrowField: false,
-            paramsRaw,
-            params: parseMethodParams(paramsRaw, { methodName: name })
-          });
-          i = j;
-          continue;
-        }
-      }
-
-      // Pola 2: class-field arrow function -> name = (async)? (args) => {
-      const arrowMatch = rest.match(/^(#?[A-Za-z_$][\w$]*)\s*=\s*(async\s+)?\(([^)]*)\)\s*=>\s*\{/);
-      if (arrowMatch) {
-        const name = arrowMatch[1];
-        const paramsRaw = arrowMatch[3].trim();
-        methods.push({
-          name,
-          isConstructor: false,
-          isStatic: false,
-          isAsync: !!arrowMatch[2],
-          isArrowField: true,
-          paramsRaw,
-          params: parseMethodParams(paramsRaw, { methodName: name })
-        });
-        i += arrowMatch[0].length - 1; // -1 supaya '{' yang barusan match ke-hitung depth di iterasi berikut
-        continue;
-      }
+  for (const member of classNode.body.body) {
+    if (member.type === "MethodDefinition") {
+      const name = memberName(member.key);
+      if (!name) continue;
+      const fn = member.value; // FunctionExpression
+      const paramsRaw = fn.params.length
+        ? src.slice(fn.params[0].start, fn.params[fn.params.length - 1].end).trim()
+        : "";
+      methods.push({
+        name,
+        isConstructor: member.kind === "constructor",
+        isStatic: !!member.static,
+        isAsync: !!fn.async,
+        isArrowField: false,
+        paramsRaw,
+        params: analyzeParamNodes(fn.params, src, { methodName: name }),
+      });
+      continue;
     }
-    i++;
+    if (
+      member.type === "PropertyDefinition" &&
+      member.value &&
+      member.value.type === "ArrowFunctionExpression"
+    ) {
+      const name = memberName(member.key);
+      if (!name) continue;
+      const fn = member.value;
+      const paramsRaw = fn.params.length
+        ? src.slice(fn.params[0].start, fn.params[fn.params.length - 1].end).trim()
+        : "";
+      methods.push({
+        name,
+        isConstructor: false,
+        isStatic: !!member.static,
+        isAsync: !!fn.async,
+        isArrowField: true,
+        paramsRaw,
+        params: analyzeParamNodes(fn.params, src, { methodName: name }),
+      });
+    }
   }
-
   return methods;
 }
 
@@ -497,53 +616,32 @@ export function extractClassMethods(classBlock) {
  * ngasih badge "dipanggil internal" — penanda bahwa method itu
  * kemungkinan helper dan gak perlu dijadikan endpoint sendiri.
  *
- * Pakai state machine yang sama gayanya dengan findMatchingClose:
- * teks di dalam string literal / template literal / comment diabaikan,
- * biar "this.login(" di dalam string error message gak salah kedetect.
+ * Berbasis AST: teks di dalam string literal / template / comment
+ * otomatis bukan CallExpression, jadi gak mungkin salah kedetect.
  */
 export function detectInternallyCalledMethods(classBlock, methods, className) {
   const methodNames = new Set(methods.filter((m) => !m.isConstructor).map((m) => m.name));
   const called = new Set();
   if (!methodNames.size) return called;
 
-  const src = String(classBlock || "");
-  let quote = null;
-  let inLineComment = false;
-  let inBlockComment = false;
-  let cleaned = "";
-
-  for (let i = 0; i < src.length; i++) {
-    const ch = src[i];
-    const next = src[i + 1];
-
-    if (inLineComment) {
-      if (ch === "\n") { inLineComment = false; cleaned += "\n"; }
-      continue;
-    }
-    if (inBlockComment) {
-      if (ch === "*" && next === "/") { inBlockComment = false; i++; }
-      continue;
-    }
-    if (quote) {
-      if (ch === "\\") { i++; continue; }
-      if (ch === quote) quote = null;
-      continue;
-    }
-    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; cleaned += " "; continue; }
-    if (ch === "/" && next === "/") { inLineComment = true; continue; }
-    if (ch === "/" && next === "*") { inBlockComment = true; i++; continue; }
-    cleaned += ch;
+  let classNode;
+  try {
+    ({ classNode } = parseClassBlock(classBlock));
+  } catch {
+    return called; // classBlock gak ke-parse — udah ditangani di tempat lain
   }
 
-  for (const m of cleaned.matchAll(/\bthis\s*\.\s*(#?[A-Za-z_$][\w$]*)\s*\(/g)) {
-    if (methodNames.has(m[1])) called.add(m[1]);
-  }
-  if (className) {
-    const staticRe = new RegExp(`\\b${escapeRegex(className)}\\s*\\.\\s*(#?[A-Za-z_$][\\w$]*)\\s*\\(`, "g");
-    for (const m of cleaned.matchAll(staticRe)) {
-      if (methodNames.has(m[1])) called.add(m[1]);
+  walkAst(classNode, (node) => {
+    if (node.type !== "CallExpression") return;
+    const callee = node.callee;
+    if (callee.type !== "MemberExpression" || callee.computed) return;
+    const name = memberName(callee.property);
+    if (!name || !methodNames.has(name)) return;
+    if (callee.object.type === "ThisExpression") called.add(name);
+    else if (className && callee.object.type === "Identifier" && callee.object.name === className) {
+      called.add(name);
     }
-  }
+  });
   return called;
 }
 
@@ -557,6 +655,8 @@ export function findMethodOrThrow(methods, methodName) {
   const found = methods.find((m) => m.name === methodName && !m.isConstructor);
   if (found) return found;
   const available = methods.filter((m) => !m.isConstructor).map((m) => m.name);
-  const list = available.length ? available.map((n) => `- ${n}`).join("\n") : "(class ini gak punya method sama sekali)";
+  const list = available.length
+    ? available.map((n) => `- ${n}`).join("\n")
+    : "(class ini gak punya method sama sekali)";
   throw new Error(`Method "${methodName}" tidak ditemukan di class ini.\nMethod yang tersedia:\n${list}`);
 }

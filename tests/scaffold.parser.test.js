@@ -10,7 +10,10 @@ import {
   extractClassMethods,
   detectInternallyCalledMethods,
   findMethodOrThrow,
-  buildRouteBlockCode
+  buildRouteBlockCode,
+  checkMissingDeps,
+  checkJsSyntax,
+  addDepsToPackageJson,
 } from "../src/utils/scaffold.js";
 
 /* ------------------------------------------------------------------ */
@@ -322,7 +325,7 @@ describe("parseMethodParams — unsupported patterns abort with a clear error", 
 
 describe("validateParsedMethodParams", () => {
   test("reports every kind present", () => {
-    const parsed = parseMethodParams('{ url: videoUrl, limit = 10, ...rest }');
+    const parsed = parseMethodParams("{ url: videoUrl, limit = 10, ...rest }");
     const v = validateParsedMethodParams(parsed);
     assert.equal(v.ok, true);
     assert.equal(v.summary, "Parser OK");
@@ -369,13 +372,13 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
     const methodArgs = methodInfo.params.names.map((n, i) => ({
       serviceParamName: n,
       requestParamName: n,
-      kind: methodInfo.params.params[i].kind
+      kind: methodInfo.params.params[i].kind,
     }));
     const allRequestParams = methodArgs.map((a) => ({
       requestParamName: a.requestParamName,
       required: a.kind !== "rest",
       desc: "",
-      kind: a.kind
+      kind: a.kind,
     }));
 
     const { code } = buildRouteBlockCode({
@@ -389,7 +392,7 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
       ctor: null,
       allRequestParams,
       endpointName: "Create",
-      endpointDesc: ""
+      endpointDesc: "",
     });
 
     assert.match(code, /const \{ name, \.\.\.rest \} = params;/);
@@ -416,13 +419,13 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
     const methodArgs = methodInfo.params.names.map((n, i) => ({
       serviceParamName: n,
       requestParamName: "videoUrl", // user memetakan field request "videoUrl" -> service key "url"
-      kind: methodInfo.params.params[i].kind
+      kind: methodInfo.params.params[i].kind,
     }));
     const allRequestParams = methodArgs.map((a) => ({
       requestParamName: a.requestParamName,
       required: true,
       desc: "",
-      kind: a.kind
+      kind: a.kind,
     }));
 
     const { code } = buildRouteBlockCode({
@@ -436,7 +439,7 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
       ctor: null,
       allRequestParams,
       endpointName: "Download",
-      endpointDesc: ""
+      endpointDesc: "",
     });
 
     assert.match(code, /const \{ videoUrl \} = params;/);
@@ -461,13 +464,13 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
     const methodArgs = methodInfo.params.names.map((n, i) => ({
       serviceParamName: n,
       requestParamName: n,
-      kind: methodInfo.params.params[i].kind
+      kind: methodInfo.params.params[i].kind,
     }));
     const allRequestParams = methodArgs.map((a, i) => ({
       requestParamName: a.requestParamName,
       required: !methodInfo.params.params[i].hasDefault,
       desc: "",
-      kind: a.kind
+      kind: a.kind,
     }));
 
     const { code } = buildRouteBlockCode({
@@ -481,11 +484,134 @@ describe("extractClassMethods + buildRouteBlockCode — generated code sanity", 
       ctor: null,
       allRequestParams,
       endpointName: "Search",
-      endpointDesc: ""
+      endpointDesc: "",
     });
 
     assert.match(code, /if \(!query\) throw new ApiError/);
     assert.doesNotMatch(code, /if \(!limit\) throw new ApiError/);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Regresi migrasi AST: 3 bug parser lama yang dulu silent-fail        */
+/* ------------------------------------------------------------------ */
+
+describe("extractClassMethods — regresi parser AST", () => {
+  test("brace di dalam template literal tidak menelan method berikutnya (bug #1)", () => {
+    const methods = extractClassMethods(
+      "class X { foo() { const s = `{ belum tutup`; return s; } bar(x) { return x; } }"
+    );
+    assert.deepEqual(
+      methods.map((m) => m.name),
+      ["foo", "bar"]
+    );
+  });
+
+  test("brace di dalam komentar tidak menelan method berikutnya (bug #1)", () => {
+    const methods = extractClassMethods("class X { foo() { /* { */ } bar() {} }");
+    assert.deepEqual(
+      methods.map((m) => m.name),
+      ["foo", "bar"]
+    );
+  });
+
+  test("brace di dalam ${} template expression tetap aman", () => {
+    const methods = extractClassMethods(
+      "class X { foo(id) { return `user ${JSON.stringify({ id })}`; } bar() {} }"
+    );
+    assert.deepEqual(
+      methods.map((m) => m.name),
+      ["foo", "bar"]
+    );
+  });
+
+  test("arrow field dengan paren bersarang di default value terdeteksi (bug #2)", () => {
+    const methods = extractClassMethods("class X { foo = (a = fn(1), b) => { return a; } }");
+    assert.equal(methods.length, 1);
+    assert.equal(methods[0].name, "foo");
+    assert.equal(methods[0].isArrowField, true);
+    assert.deepEqual(methods[0].params.names, ["a", "b"]);
+    assert.equal(methods[0].params.params[0].hasDefault, true);
+  });
+
+  test("arrow field concise (tanpa body {}) terdeteksi", () => {
+    const methods = extractClassMethods("class X { dobel = (a) => a * 2 }");
+    assert.deepEqual(
+      methods.map((m) => m.name),
+      ["dobel"]
+    );
+  });
+
+  test("class field biasa (bukan arrow) TIDAK dianggap method", () => {
+    const methods = extractClassMethods('class X { baseUrl = "https://x"; foo() {} }');
+    assert.deepEqual(
+      methods.map((m) => m.name),
+      ["foo"]
+    );
+  });
+});
+
+describe("extractClassInfo — regresi import multiline (bug #3)", () => {
+  test("import multiline masuk importLines dan kedeteksi checkMissingDeps", () => {
+    const info = extractClassInfo(
+      'import {\n  scrape,\n  parse\n} from "paket-yang-pasti-belum-ada";\nclass X { m() {} }'
+    );
+    assert.equal(info.importLines.length, 1);
+    assert.match(info.importLines[0], /paket-yang-pasti-belum-ada/);
+    // Bukan lagi nyangkut di preludeCode seperti sebelum migrasi AST.
+    assert.doesNotMatch(info.preludeCode, /paket-yang-pasti-belum-ada/);
+    assert.deepEqual(checkMissingDeps(info.importLines), ["paket-yang-pasti-belum-ada"]);
+  });
+
+  test("prelude non-import sebelum class tetap dipertahankan", () => {
+    const info = extractClassInfo(
+      'import a from "x";\nconst WATERMARK = decode("...");\nclass X { m() { return WATERMARK; } }'
+    );
+    assert.deepEqual(info.importLines, ['import a from "x";']);
+    assert.match(info.preludeCode, /WATERMARK/);
+    assert.doesNotMatch(info.preludeCode, /^import/m);
+  });
+
+  test("kode yang bukan JS valid ditolak dengan pesan jelas", () => {
+    assert.throws(() => extractClassInfo("class X { foo( {} }"), /bukan JavaScript valid/);
+  });
+});
+
+describe("checkJsSyntax", () => {
+  test("null untuk JS valid", () => {
+    assert.equal(checkJsSyntax('import x from "y";\nexport default 1;'), null);
+  });
+
+  test("pesan error untuk JS rusak", () => {
+    assert.match(checkJsSyntax("const = 1;"), /./);
+  });
+});
+
+describe("addDepsToPackageJson — resolve versi", () => {
+  const basePkg = JSON.stringify({ name: "t", dependencies: { axios: "^1.0.0" } });
+
+  test("pakai ^versi hasil resolve, bukan 'latest'", () => {
+    const { content, added } = addDepsToPackageJson(basePkg, ["cheerio-baru"], {
+      resolveVersion: () => "2.3.4",
+    });
+    const pkg = JSON.parse(content);
+    assert.equal(pkg.dependencies["cheerio-baru"], "^2.3.4");
+    assert.deepEqual(added, ["cheerio-baru"]);
+  });
+
+  test("fallback ke 'latest' kalau resolve gagal (offline)", () => {
+    const { content } = addDepsToPackageJson(basePkg, ["paket-x"], { resolveVersion: () => null });
+    assert.equal(JSON.parse(content).dependencies["paket-x"], "latest");
+  });
+
+  test("package yang sudah ada tidak disentuh dan tidak di-resolve", () => {
+    const { content, added } = addDepsToPackageJson(basePkg, ["axios"], {
+      resolveVersion: () => {
+        throw new Error("gak boleh kepanggil");
+      },
+    });
+    assert.equal(JSON.parse(content).dependencies.axios, "^1.0.0");
+    assert.deepEqual(added, []);
   });
 });
 

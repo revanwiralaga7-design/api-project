@@ -18,6 +18,7 @@ import {
   extractClassMethods,
   findMethodOrThrow,
   ParserUnsupportedError,
+  checkJsSyntax,
   buildServiceFileContent,
   buildRouteBlockCode,
   buildNewRouteFileContent,
@@ -34,7 +35,7 @@ import {
   removeEndpointFromPublicData,
   computeOrphanedServices,
   findDuplicateEndpoint,
-  escapeRegex
+  escapeRegex,
 } from "../../utils/scaffold.js";
 
 export const PKG_PATH = path.join(ROOT, "package.json");
@@ -72,14 +73,35 @@ export function safeExtractClassMethods(classBlock) {
 }
 
 /**
+ * Lempar ApiError 400 kalau ada konten file hasil generate yang tidak
+ * valid secara sintaks JS. `files` = { labelPath: content } — content
+ * null/undefined (file yang bakal dihapus) di-skip.
+ */
+function assertGeneratedSyntax(files) {
+  for (const [label, content] of Object.entries(files)) {
+    if (content == null) continue;
+    const syntaxError = checkJsSyntax(content);
+    if (syntaxError) {
+      throw new ApiError(
+        `Hasil generate untuk ${label} tidak valid secara sintaks (${syntaxError}). ` +
+          `Tidak ada file yang ditulis — cek kembali kode class yang di-paste.`,
+        400
+      );
+    }
+  }
+}
+
+/**
  * Susun semua bahan (nama file, konten yang akan ditulis, dsb) dari
  * payload form. Dipakai bareng oleh /preview dan /apply supaya hasilnya
  * konsisten (preview = simulasi persis apa yang akan ditulis /apply).
  */
 export function buildPlan(body, opts = {}) {
   const overrides = opts.fileOverrides || {};
-  const readVirtual = (p) => (Object.prototype.hasOwnProperty.call(overrides, p) ? overrides[p] : fs.readFileSync(p, "utf8"));
-  const existsVirtual = (p) => (Object.prototype.hasOwnProperty.call(overrides, p) ? overrides[p] !== null : fs.existsSync(p));
+  const readVirtual = (p) =>
+    Object.prototype.hasOwnProperty.call(overrides, p) ? overrides[p] : fs.readFileSync(p, "utf8");
+  const existsVirtual = (p) =>
+    Object.prototype.hasOwnProperty.call(overrides, p) ? overrides[p] !== null : fs.existsSync(p);
   const {
     classCode,
     serviceFileName: rawServiceFileName,
@@ -97,14 +119,16 @@ export function buildPlan(body, opts = {}) {
     categoryMode, // "existing" | "new"
     categoryId,
     newCategory, // { id, tag, label, desc }
-    autoInstallDeps
+    autoInstallDeps,
   } = body;
 
   if (!classCode || !classCode.trim()) throw new ApiError("Kode class belum di-paste.", 400);
-  if (!selectedMethod || !selectedMethod.trim()) throw new ApiError("Pilih method yang mau dipanggil dulu (klik 'Analisis Class').", 400);
+  if (!selectedMethod || !selectedMethod.trim())
+    throw new ApiError("Pilih method yang mau dipanggil dulu (klik 'Analisis Class').", 400);
 
   const serviceFileName = lowerFirst(slugify(rawServiceFileName));
-  if (!serviceFileName) throw new ApiError("Nama service tidak valid (harus huruf/angka, diawali huruf).", 400);
+  if (!serviceFileName)
+    throw new ApiError("Nama service tidak valid (harus huruf/angka, diawali huruf).", 400);
 
   const { className, classBlock, hasInlineExport, importLines, preludeCode } = extractClassInfo(classCode);
   const depWarnings = checkMissingDeps(importLines);
@@ -124,7 +148,9 @@ export function buildPlan(body, opts = {}) {
   // parameter — `names` dan `params` selalu paralel/sejajar urutannya
   // (sama-sama diturunkan dari array yang sama di parseMethodParams),
   // jadi aman di-zip by index. Generator baca dari sini, gak nebak lagi.
-  const methodParamsMetaByKey = new Map(methodInfo.params.names.map((n, i) => [n, methodInfo.params.params[i]]));
+  const methodParamsMetaByKey = new Map(
+    methodInfo.params.names.map((n, i) => [n, methodInfo.params.params[i]])
+  );
   const ctorParamsMeta = ctorInfo ? ctorInfo.params.params : [];
   const ctorMetaByKey = new Map(ctorParamNames.map((n, i) => [n, ctorParamsMeta[i]]));
 
@@ -135,7 +161,10 @@ export function buildPlan(body, opts = {}) {
   const routeFilePath = path.join(ROUTES_DIR, `${routeSlug}.routes.js`);
 
   if (isNewRouteFile && existsVirtual(routeFilePath)) {
-    throw new ApiError(`src/routes/${routeSlug}.routes.js sudah ada. Pilih mode "route existing" atau nama slug lain.`, 409);
+    throw new ApiError(
+      `src/routes/${routeSlug}.routes.js sudah ada. Pilih mode "route existing" atau nama slug lain.`,
+      409
+    );
   }
   if (!isNewRouteFile && !existsVirtual(routeFilePath)) {
     throw new ApiError(`src/routes/${routeSlug}.routes.js tidak ditemukan.`, 404);
@@ -152,19 +181,31 @@ export function buildPlan(body, opts = {}) {
   const indexContentPeek = readVirtual(ROUTES_INDEX);
   const dup = findDuplicateEndpoint(indexContentPeek, fullPath, method);
   if (dup) {
-    throw new ApiError(`Endpoint "${fullPath}" udah kedaftar sebagai "${dup.name}" (${dup.method}). Ganti path atau method-nya.`, 409);
+    throw new ApiError(
+      `Endpoint "${fullPath}" udah kedaftar sebagai "${dup.name}" (${dup.method}). Ganti path atau method-nya.`,
+      409
+    );
   }
   if (!isNewRouteFile) {
     const peek = readVirtual(routeFilePath);
-    const already = new RegExp(`router\\.(all|get|post)\\(\\s*["']${escapeRegex(subPath)}["']`).test(peek);
-    if (already) throw new ApiError(`Sub-path "${subPath}" sudah ada di src/routes/${routeSlug}.routes.js.`, 409);
+    const already = new RegExp(
+      `router\\.(all|get|post|put|delete|patch)\\(\\s*["']${escapeRegex(subPath)}["']`
+    ).test(peek);
+    if (already)
+      throw new ApiError(`Sub-path "${subPath}" sudah ada di src/routes/${routeSlug}.routes.js.`, 409);
   }
 
   const servicePath = path.join(SERVICES_DIR, `${serviceFileName}.service.js`);
   const serviceExists = fs.existsSync(servicePath);
   const instanceName = lowerFirst(slugify(rawInstanceName) || serviceFileName);
 
-  const serviceFileContent = buildServiceFileContent({ importLines, preludeCode, classBlock, className, hasInlineExport });
+  const serviceFileContent = buildServiceFileContent({
+    importLines,
+    preludeCode,
+    classBlock,
+    className,
+    hasInlineExport,
+  });
 
   // --- Fitur 2 & 4: methodArgs sesuai URUTAN ASLI signature + mapping nama request ---
   // (kind ikut dibawa dari metadata parser: property/alias/rest — dipakai
@@ -172,7 +213,8 @@ export function buildPlan(body, opts = {}) {
   const cleanMethodParams = (methodParams || []).filter((p) => p.serviceParamName);
   const methodArgs = methodInfo.params.names.map((n) => {
     const found = cleanMethodParams.find((p) => p.serviceParamName === n);
-    const requestParamName = found && found.requestParamName ? (slugify(found.requestParamName) || found.requestParamName) : n;
+    const requestParamName =
+      found && found.requestParamName ? slugify(found.requestParamName) || found.requestParamName : n;
     const meta = methodParamsMetaByKey.get(n);
     return { serviceParamName: n, requestParamName, kind: meta ? meta.kind : "property" };
   });
@@ -183,7 +225,8 @@ export function buildPlan(body, opts = {}) {
     const cleanCtorParams = ctorParams || [];
     const args = ctorParamNames.map((n) => {
       const found = cleanCtorParams.find((p) => p.serviceParamName === n);
-      if (!found) throw new ApiError(`Constructor class ini butuh parameter "${n}", tapi belum di-set di form.`, 400);
+      if (!found)
+        throw new ApiError(`Constructor class ini butuh parameter "${n}", tapi belum di-set di form.`, 400);
       const meta = ctorMetaByKey.get(n);
       const kind = meta ? meta.kind : "property";
       if (found.source === "static") {
@@ -206,9 +249,10 @@ export function buildPlan(body, opts = {}) {
       // Parameter yang di source class-nya udah punya default value (atau
       // rest) TIDAK PERNAH divalidasi "wajib diisi" lagi — class-nya
       // sendiri yang bakal isi default itu. (Parser Upgrade v2, poin 4)
-      required: hasDefault || a.kind === "rest" ? false : (src ? !!src.required : true),
-      desc: (src && src.desc) || (a.kind === "rest" ? "Properti tambahan lainnya (diteruskan apa adanya)." : ""),
-      kind: a.kind
+      required: hasDefault || a.kind === "rest" ? false : src ? !!src.required : true,
+      desc:
+        (src && src.desc) || (a.kind === "rest" ? "Properti tambahan lainnya (diteruskan apa adanya)." : ""),
+      kind: a.kind,
     });
   }
   if (ctor) {
@@ -220,9 +264,12 @@ export function buildPlan(body, opts = {}) {
       const existing = reqParamMap.get(a.requestParamName);
       reqParamMap.set(a.requestParamName, {
         requestParamName: a.requestParamName,
-        required: hasDefault || a.kind === "rest" ? false : (existing ? existing.required : false) || (src ? !!src.required : true),
+        required:
+          hasDefault || a.kind === "rest"
+            ? false
+            : (existing ? existing.required : false) || (src ? !!src.required : true),
         desc: (existing && existing.desc) || (src && src.desc) || "",
-        kind: a.kind
+        kind: a.kind,
       });
     }
   }
@@ -239,14 +286,20 @@ export function buildPlan(body, opts = {}) {
     ctor,
     allRequestParams,
     endpointName,
-    endpointDesc
+    endpointDesc,
   });
   const routeBlockCode = routeBlockCodeRaw.replace("{ROUTE_PREFIX}", routeSlug);
 
   let routeFileContent;
   let originalRouteFileContent = null;
   if (isNewRouteFile) {
-    routeFileContent = buildNewRouteFileContent({ className, serviceFileName, instanceName, routeBlockCode, usesPerRequestInstance });
+    routeFileContent = buildNewRouteFileContent({
+      className,
+      serviceFileName,
+      instanceName,
+      routeBlockCode,
+      usesPerRequestInstance,
+    });
   } else {
     originalRouteFileContent = readVirtual(routeFilePath);
     routeFileContent = appendRouteBlockToExistingFile(originalRouteFileContent, {
@@ -254,7 +307,7 @@ export function buildPlan(body, opts = {}) {
       serviceFileName,
       instanceName,
       routeBlockCode,
-      usesPerRequestInstance
+      usesPerRequestInstance,
     });
   }
 
@@ -271,9 +324,12 @@ export function buildPlan(body, opts = {}) {
       path: fullPath,
       params: [
         ...pathParamNames.map((n) => `${n} (path)`),
-        ...requestOnlyParams.map((p) => `${p.kind === "rest" ? "..." + p.requestParamName : p.requestParamName}${p.required ? "" : "?"}`)
-      ]
-    }
+        ...requestOnlyParams.map(
+          (p) =>
+            `${p.kind === "rest" ? "..." + p.requestParamName : p.requestParamName}${p.required ? "" : "?"}`
+        ),
+      ],
+    },
   });
 
   const originalDataContent = readVirtual(PUBLIC_DATA);
@@ -286,8 +342,8 @@ export function buildPlan(body, opts = {}) {
     query: requestOnlyParams.map((p) => ({
       name: p.kind === "rest" ? `...${p.requestParamName}` : p.requestParamName,
       required: !!p.required,
-      desc: p.desc || ""
-    }))
+      desc: p.desc || "",
+    })),
   };
 
   let newDataContent;
@@ -304,9 +360,9 @@ export function buildPlan(body, opts = {}) {
         id: slugify(newCategory.id).toLowerCase(),
         tag: (newCategory.tag || newCategory.id.slice(0, 2)).toUpperCase().slice(0, 3),
         label: newCategory.label,
-        desc: newCategory.desc || ""
+        desc: newCategory.desc || "",
       },
-      endpointObj
+      endpointObj,
     });
   }
 
@@ -319,6 +375,17 @@ export function buildPlan(body, opts = {}) {
     packageJsonContent = result.content;
     depsAdded = result.added;
   }
+
+  // --- Validasi sintaks SEMUA file hasil generate, sebelum preview/apply ---
+  // Input user bisa aja lolos parser class tapi hasil rakitannya invalid
+  // (mis. prelude yang kepotong aneh). Lebih baik ApiError 400 di sini
+  // daripada server gagal start setelah restart nge-import file rusak.
+  assertGeneratedSyntax({
+    [`src/services/${serviceFileName}.service.js`]: serviceFileContent,
+    [`src/routes/${routeSlug}.routes.js`]: routeFileContent,
+    "src/routes/index.js": newIndexContent,
+    "public/data.js": newDataContent,
+  });
 
   return {
     depWarnings,
@@ -340,7 +407,7 @@ export function buildPlan(body, opts = {}) {
     dataContent: newDataContent,
     fullPath,
     method,
-    usesPerRequestInstance
+    usesPerRequestInstance,
   };
 }
 
@@ -362,7 +429,10 @@ export function buildDeletePlan(body) {
   const indexContent = fs.readFileSync(ROUTES_INDEX, "utf8");
   const routeFileBase = findRouteFileForSlug(indexContent, routeSlug);
   if (!routeFileBase) {
-    throw new ApiError(`Gak ketemu route file yang di-mount di prefix "/${routeSlug}" di routes/index.js.`, 404);
+    throw new ApiError(
+      `Gak ketemu route file yang di-mount di prefix "/${routeSlug}" di routes/index.js.`,
+      404
+    );
   }
 
   const routeFilePath = path.join(ROUTES_DIR, `${routeFileBase}.routes.js`);
@@ -373,53 +443,90 @@ export function buildDeletePlan(body) {
   const originalRouteFileContent = fs.readFileSync(routeFilePath, "utf8");
   const { content: newRouteFileContent, removed: removedBlock } = removeRouteBlock(originalRouteFileContent, {
     subPath,
-    method: cleanMethod
+    method: cleanMethod,
   });
   if (!removedBlock) {
-    throw new ApiError(`Gak ketemu blok route untuk "${subPath}" di src/routes/${routeFileBase}.routes.js.`, 404);
+    throw new ApiError(
+      `Gak ketemu blok route untuk "${subPath}" di src/routes/${routeFileBase}.routes.js.`,
+      404
+    );
   }
 
   const willDeleteRouteFile = countRouteBlocks(newRouteFileContent) === 0;
 
-  const { cleanedContent: cleanedRouteFileContent, serviceFilesToDelete, orphanNames: orphanCandidateNames } =
-    computeOrphanedServices(originalRouteFileContent, newRouteFileContent, { willDeleteRouteFile, routeFileBase });
+  const {
+    cleanedContent: cleanedRouteFileContent,
+    serviceFilesToDelete,
+    orphanNames: orphanCandidateNames,
+  } = computeOrphanedServices(originalRouteFileContent, newRouteFileContent, {
+    willDeleteRouteFile,
+    routeFileBase,
+  });
 
   let finalIndexContent = indexContent;
-  const { content: indexAfterRemoval, removed: removedFromIndex } = removeEndpointFromRoutesIndex(finalIndexContent, {
-    path: fullPath,
-    method: cleanMethod
-  });
+  const { content: indexAfterRemoval, removed: removedFromIndex } = removeEndpointFromRoutesIndex(
+    finalIndexContent,
+    {
+      path: fullPath,
+      method: cleanMethod,
+    }
+  );
   finalIndexContent = indexAfterRemoval;
   if (willDeleteRouteFile) {
     finalIndexContent = removeRouteFileRefFromIndex(finalIndexContent, routeSlug);
   }
 
   const dataContent = fs.readFileSync(PUBLIC_DATA, "utf8");
-  const { content: newDataContent, removed: removedFromData, categoryEmpty } = removeEndpointFromPublicData(dataContent, {
+  const {
+    content: newDataContent,
+    removed: removedFromData,
+    categoryEmpty,
+  } = removeEndpointFromPublicData(dataContent, {
     path: fullPath,
-    method: cleanMethod
+    method: cleanMethod,
   });
 
   const warnings = [];
-  if (!removedFromIndex) warnings.push("Entry endpoint tidak ketemu di src/routes/index.js (format beda / sudah kehapus).");
-  if (!removedFromData) warnings.push("Entry endpoint tidak ketemu di public/data.js (format beda / sudah kehapus).");
-  if (categoryEmpty) warnings.push("Kategori terkait jadi kosong di public/data.js — kategori TIDAK otomatis dihapus, hapus manual kalau perlu.");
+  if (!removedFromIndex)
+    warnings.push("Entry endpoint tidak ketemu di src/routes/index.js (format beda / sudah kehapus).");
+  if (!removedFromData)
+    warnings.push("Entry endpoint tidak ketemu di public/data.js (format beda / sudah kehapus).");
+  if (categoryEmpty)
+    warnings.push(
+      "Kategori terkait jadi kosong di public/data.js — kategori TIDAK otomatis dihapus, hapus manual kalau perlu."
+    );
   if (willDeleteRouteFile) {
-    warnings.push(`src/routes/${routeFileBase}.routes.js jadi kosong (tidak ada endpoint lain) — file ini akan DIHAPUS otomatis beserta referensinya di routes/index.js.`);
+    warnings.push(
+      `src/routes/${routeFileBase}.routes.js jadi kosong (tidak ada endpoint lain) — file ini akan DIHAPUS otomatis beserta referensinya di routes/index.js.`
+    );
   }
   for (const s of serviceFilesToDelete) {
-    warnings.push(`src/services/${s.serviceFileName}.service.js tidak dipakai endpoint lain manapun — file ini akan DIHAPUS otomatis.`);
+    warnings.push(
+      `src/services/${s.serviceFileName}.service.js tidak dipakai endpoint lain manapun — file ini akan DIHAPUS otomatis.`
+    );
   }
-  const keptOrphans = [...new Set(orphanCandidateNames)].filter((n) => !serviceFilesToDelete.some((s) => s.serviceFileName === n));
+  const keptOrphans = [...new Set(orphanCandidateNames)].filter(
+    (n) => !serviceFilesToDelete.some((s) => s.serviceFileName === n)
+  );
   for (const n of keptOrphans) {
-    warnings.push(`src/services/${n}.service.js masih di-import route file lain, jadi TIDAK dihapus (import/instance yang sudah tidak dipakai di file ini tetap dibersihkan).`);
+    warnings.push(
+      `src/services/${n}.service.js masih di-import route file lain, jadi TIDAK dihapus (import/instance yang sudah tidak dipakai di file ini tetap dibersihkan).`
+    );
   }
+
+  const finalRouteFileContent = willDeleteRouteFile ? newRouteFileContent : cleanedRouteFileContent;
+  assertGeneratedSyntax({
+    // Kalau file-nya bakal dihapus, isinya gak akan pernah di-import lagi.
+    ...(willDeleteRouteFile ? {} : { [`src/routes/${routeFileBase}.routes.js`]: finalRouteFileContent }),
+    "src/routes/index.js": finalIndexContent,
+    "public/data.js": newDataContent,
+  });
 
   return {
     routeFileBase,
     routeFilePath,
     originalRouteFileContent,
-    newRouteFileContent: willDeleteRouteFile ? newRouteFileContent : cleanedRouteFileContent,
+    newRouteFileContent: finalRouteFileContent,
     willDeleteRouteFile,
     serviceFilesToDelete,
     originalIndexContent: indexContent,
@@ -428,7 +535,7 @@ export function buildDeletePlan(body) {
     newDataContent,
     warnings,
     fullPath,
-    method: cleanMethod || "ALL"
+    method: cleanMethod || "ALL",
   };
 }
 
