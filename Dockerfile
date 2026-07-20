@@ -25,6 +25,11 @@ VOLUME /data
 
 EXPOSE 3000
 
+# Liveness check — endpoint /health didaftarkan paling atas di src/app.js,
+# tanpa auth dan tanpa kerja berat.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://localhost:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
 # PENTING: fitur apply/restart di admin panel keluar via process.exit(0) dan
 # mengandalkan supervisor buat ngidupin lagi — jalankan container dengan
 # `--restart unless-stopped` (atau restart policy setara di compose/orchestrator).

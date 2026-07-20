@@ -41,6 +41,16 @@ app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
+
+// Health check publik — SENGAJA didaftarkan paling atas (sebelum session,
+// rate limiter, dan body parser) biar semurah mungkin dan gak pernah
+// kehalang middleware lain. Dipakai Docker HEALTHCHECK, Railway health
+// check, dan monitoring eksternal. Tanpa auth: isinya cuma liveness +
+// uptime, gak ada data sensitif.
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", uptime: Math.round(process.uptime()) });
+});
+
 // Bundle restore backup isinya SEMUA file hasil scaffold (bisa lewat 2mb
 // kalau endpoint-nya udah banyak) — kasih limit lebih longgar khusus path
 // ini, SEBELUM parser global di bawah (begitu body udah keparse di sini,
