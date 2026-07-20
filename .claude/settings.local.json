@@ -53,7 +53,17 @@
       "Bash(printf 'https://revanwiralaga7-design:REDACTED@github.com\\\\n')",
       "Bash(chmod 600 ~/.git-credentials)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Header kuota harian \\(X-Daily-Quota-*\\) + Retry-After pas 429 *)"
+      "Bash(git commit -m 'Header kuota harian \\(X-Daily-Quota-*\\) + Retry-After pas 429 *)",
+      "Bash(git commit -m 'Tambah GET /auth/usage-series: data grafik usage per key \\(self-service\\) *)",
+      "Bash(git commit -m 'Test regression /openapi.json publik \\(dipakai tombol unduh di docs\\) *)",
+      "Bash(PORT=3199 NODE_ENV=test SESSION_STORE_PATH=/tmp/claude-1000/-home-admin/983be939-a3d3-4e2b-a9fa-743b4e96a625/scratchpad/sess.sqlite timeout 15 node server.js)",
+      "Bash(curl -s localhost:3199/openapi.json)",
+      "Bash(curl -s -o /dev/null -w \"usage-panel.js: %{http_code}\\\\n\" localhost:3199/usage-panel.js)",
+      "Bash(curl -s -o /dev/null -w \"usage-series anon: %{http_code}\\\\n\" localhost:3199/auth/usage-series)",
+      "Bash(git commit -m 'Panel usage per key di docs + link unduh OpenAPI di kartu API key *)",
+      "Bash(npm run *)",
+      "Bash(git commit -m 'style: format \\(prettier\\) usage-panel, auth.routes, plan doc *)",
+      "Bash(git commit -m 'chore: update izin tool lokal \\(.claude/settings.local.json\\) *)"
     ]
   }
 }
