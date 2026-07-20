@@ -173,6 +173,22 @@ export function topPathsForKey(clientKey, days = 7, limit = 5) {
 }
 
 /**
+ * Deret harian milik SATU client — buat grafik batang panel usage di docs
+ * (self-service). Sama seperti dailySeries: SEMUA hari di rentang dibalikin
+ * urut termasuk yang 0 hit, biar sumbu X grafik kontinu.
+ */
+export function dailySeriesForKey(clientKey, days = 14) {
+  const usage = load();
+  const out = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const entry = clientKey ? usage[day]?.[clientKey] : null;
+    out.push({ day, total: entry?.total || 0, limited: entry?.limited || 0 });
+  }
+  return out;
+}
+
+/**
  * Reset cache in-memory (dipakai test biar tiap test mulai bersih).
  */
 export function _resetUsageCache() {
@@ -190,6 +206,7 @@ export default {
   usageSummary,
   dailySeries,
   topPathsForKey,
+  dailySeriesForKey,
   flushUsage,
   USAGE_PATH,
 };
