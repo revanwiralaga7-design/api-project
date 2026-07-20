@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
+import { writeFileAtomic } from "./atomicWrite.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // File paling berharga di project ini: SEMUA API key konsumen (termasuk
@@ -34,9 +35,9 @@ export function loadClients() {
 }
 
 export function saveClients(clients) {
-  // Folder tujuan bisa belum ada pas CLIENTS_PATH diarahin ke volume kosong.
-  fs.mkdirSync(path.dirname(CLIENTS_PATH), { recursive: true });
-  fs.writeFileSync(CLIENTS_PATH, JSON.stringify(clients, null, 2) + "\n", "utf8");
+  // Atomic (tmp + rename): kalau proses mati di tengah nulis, file lama
+  // tetap utuh — clients.json gak boleh korup, isinya gak bisa direkonstruksi.
+  writeFileAtomic(CLIENTS_PATH, JSON.stringify(clients, null, 2) + "\n");
 }
 
 /**
