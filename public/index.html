@@ -958,8 +958,38 @@
           </div>
           <div class="apikey-hint">
             Playground di bawah otomatis pakai key ini — buat dipakai di luar docs, kirim sebagai header
-            <code>x-api-key</code> atau query <code>?apikey=</code>.
+            <code>x-api-key</code> atau query <code>?apikey=</code>. Spec mesin-terbaca:
+            <a href="/openapi.json" target="_blank" style="color: var(--green)">unduh OpenAPI</a>
+            — impor ke Postman/Insomnia/Swagger UI.
           </div>
+        </div>
+
+        <!-- Panel usage per key: grafik batang 14 hari + kuota + top endpoint.
+             Diisi public/usage-panel.js dari /auth/usage-series — cuma tampil
+             buat akun OAuth (session admin-key ditolak /auth/keys, panel diem). -->
+        <div class="apikey-card" id="usagePanel">
+          <div class="apikey-head">
+            <span class="apikey-label">PEMAKAIAN 14 HARI</span>
+            <select
+              id="usageKeySelect"
+              style="
+                font-family: var(--mono);
+                font-size: 11px;
+                background: var(--bg-2);
+                border: 1px solid var(--line);
+                border-radius: 4px;
+                padding: 3px 6px;
+                color: var(--text);
+              "
+            ></select>
+          </div>
+          <div
+            id="usageChart"
+            style="display: flex; align-items: flex-end; gap: 3px; height: 90px; margin-top: 10px"
+          ></div>
+          <div class="apikey-hint" id="usageQuota" style="display: none"></div>
+          <div class="apikey-hint" id="usageTopPaths" style="display: none"></div>
+          <div class="apikey-hint" id="usageError" style="display: none; color: var(--amber)"></div>
         </div>
 
         <div class="panel-frame">
@@ -981,6 +1011,7 @@
 
     <script src="./data.js"></script>
     <script src="./app.js"></script>
+    <script src="./usage-panel.js"></script>
     <script>
       // Halaman ini sekarang digerbang login (lihat requireDocsAuth di server) —
       // badge ini cuma tampilan "login sebagai siapa", bukan bagian dari
