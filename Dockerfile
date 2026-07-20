@@ -5,12 +5,12 @@
 # prebuilt binary buat linux x64/arm64, jadi gak perlu toolchain compile —
 # kalau suatu saat prebuilt-nya gak ada, tambahin `apt-get install -y
 # python3 make g++` di stage ini.
-FROM node:22-slim AS deps
+FROM node:24-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-FROM node:22-slim
+FROM node:24-slim
 ENV NODE_ENV=production
 WORKDIR /app
 
