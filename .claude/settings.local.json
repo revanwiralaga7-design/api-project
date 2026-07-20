@@ -63,7 +63,10 @@
       "Bash(git commit -m 'Panel usage per key di docs + link unduh OpenAPI di kartu API key *)",
       "Bash(npm run *)",
       "Bash(git commit -m 'style: format \\(prettier\\) usage-panel, auth.routes, plan doc *)",
-      "Bash(git commit -m 'chore: update izin tool lokal \\(.claude/settings.local.json\\) *)"
+      "Bash(git commit -m 'chore: update izin tool lokal \\(.claude/settings.local.json\\) *)",
+      "Bash(git checkout *)",
+      "Bash(git pull *)",
+      "Bash(git merge *)"
     ]
   }
 }
